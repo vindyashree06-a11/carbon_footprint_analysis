@@ -7,7 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from utils.preprocessing import preprocess_data
-from utils.feature_engineering import create_features
+from utils.feature_engineering import engineer_features
 from utils.emissions import emission_summary
 from utils.esg import calculate_esg
 from utils.insights import generate_insights
@@ -42,7 +42,7 @@ if "data" not in st.session_state:
 
         df = preprocess_data(df)
 
-        df = create_features(df)
+        df = engineer_features(df)
 
         st.session_state["data"] = df
 
@@ -186,7 +186,6 @@ with left:
         fig,
         use_container_width=True
     )
-
 # ---------------------------------------------------
 # MONTHLY EMISSIONS
 # ---------------------------------------------------
@@ -197,28 +196,27 @@ with right:
 
     if date_col:
 
-       monthly = (
-    df
-    .set_index(date_col)
-    .resample("ME")
-    ["CO2(tCO2)"]
-    .sum()
-    .reset_index()
-    )
+        monthly = (
+            df
+            .set_index(date_col)
+            .resample("ME")
+            ["CO2(tCO2)"]
+            .sum()
+            .reset_index()
+        )
 
-    fig = px.line(
-        monthly,
-        x=date_col,
-        y="CO2(tCO2)",
-        markers=True,
-        title="Monthly Carbon Trend"
-    )
+        fig = px.line(
+            monthly,
+            x=date_col,
+            y="CO2(tCO2)",
+            markers=True,
+            title="Monthly Carbon Trend"
+        )
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
 # ---------------------------------------------------
 # LOAD TYPE ANALYSIS
 # ---------------------------------------------------
@@ -252,13 +250,13 @@ st.subheader("⚡ Weekly Energy Consumption")
 
 if date_col:
 
-   weekly = (
-    df
-    .set_index(date_col)
-    .resample("W")
-    ["Usage_kWh"]
-    .sum()
-    .reset_index()
+    weekly = (
+        df
+        .set_index(date_col)
+        .resample("W")
+        ["Usage_kWh"]
+        .sum()
+        .reset_index()
     )
 
     fig = px.area(
@@ -272,7 +270,6 @@ if date_col:
         fig,
         use_container_width=True
     )
-
 # ---------------------------------------------------
 # ENERGY VS EMISSIONS
 # ---------------------------------------------------
