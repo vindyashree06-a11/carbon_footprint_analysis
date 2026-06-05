@@ -462,13 +462,73 @@ def preprocess_data(df):
 
         "duplicates_removed":
             duplicates_removed,
+# ---------------------------------------------------
+# COMPLETE PIPELINE
+# ---------------------------------------------------
 
-        "outlier_report":
-            outlier_report,
+def preprocess_data(df):
 
-        "quality_report":
-            quality_report
-    }
+    """
+    Complete preprocessing pipeline.
+
+    Returns cleaned dataframe.
+    """
+
+    # Clean column names
+    df.columns = (
+        df.columns
+        .astype(str)
+        .str.strip()
+    )
+
+    validation = validate_dataset(df)
+
+    if not validation["valid"]:
+
+        logger.error(
+            f"Missing columns: "
+            f"{validation['missing_columns']}"
+        )
+
+        raise ValueError(
+            "Dataset validation failed.\n"
+            f"Missing columns: "
+            f"{validation['missing_columns']}"
+        )
+
+    df = parse_dates(df)
+
+    df = convert_data_types(df)
+
+    df = handle_missing_values(df)
+
+    df, duplicates_removed = (
+        remove_duplicates(df)
+    )
+
+    outlier_report = (
+        detect_outliers_iqr(df)
+    )
+
+    quality_report = (
+        generate_quality_report(df)
+    )
+
+    logger.info(
+        f"Duplicates Removed: "
+        f"{duplicates_removed}"
+    )
+
+    logger.info(
+        f"Quality Report: "
+        f"{quality_report}"
+    )
+
+    logger.info(
+        "Preprocessing Completed Successfully"
+    )
+
+    return df
 
 # ---------------------------------------------------
 # MAIN TEST
