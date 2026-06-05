@@ -584,7 +584,46 @@ def run_esg_engine(
         "report":
             report
     }
+# ----------------------------------------------------
+# STREAMLIT COMPATIBILITY WRAPPER
+# ----------------------------------------------------
 
+def calculate_esg(df, target_reduction=15):
+    """
+    Compatibility function used by dashboard pages.
+
+    Returns:
+    {
+        "score": float,
+        "rating": str,
+        "status": str,
+        "progress": float,
+        "summary": dict
+    }
+    """
+
+    summary = esg_summary(
+        df,
+        target_reduction
+    )
+
+    return {
+
+        "score":
+            summary["ESG_Score"],
+
+        "rating":
+            summary["ESG_Rating"],
+
+        "status":
+            summary["Status"],
+
+        "progress":
+            summary["Progress"],
+
+        "summary":
+            summary
+    }
 # ----------------------------------------------------
 # TEST
 # ----------------------------------------------------
