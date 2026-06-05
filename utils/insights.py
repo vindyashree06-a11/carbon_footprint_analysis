@@ -546,6 +546,17 @@ def insights_report(df):
     })
 
 # ----------------------------------------------------
+# STREAMLIT COMPATIBILITY WRAPPER
+# ----------------------------------------------------
+
+def generate_insights(df):
+    """
+    Compatibility wrapper used by dashboard pages.
+    """
+
+    return generate_all_insights(df)
+
+# ----------------------------------------------------
 # TEST
 # ----------------------------------------------------
 
