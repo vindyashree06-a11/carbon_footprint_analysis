@@ -197,17 +197,14 @@ with right:
 
     if date_col:
 
-        monthly = (
-            df
-            .groupby(
-                pd.Grouper(
-                    key=date_col,
-                    freq="M"
-                )
-            )["CO2(tCO2)"]
-            .sum()
-            .reset_index()
-        )
+       monthly = (
+    df
+    .set_index(date_col)
+    .resample("ME")
+    ["CO2(tCO2)"]
+    .sum()
+    .reset_index()
+    )
 
         fig = px.line(
             monthly,
@@ -255,16 +252,13 @@ st.subheader("⚡ Weekly Energy Consumption")
 
 if date_col:
 
-    weekly = (
-        df
-        .groupby(
-            pd.Grouper(
-                key=date_col,
-                freq="W"
-            )
-        )["Usage_kWh"]
-        .sum()
-        .reset_index()
+   weekly = (
+    df
+    .set_index(date_col)
+    .resample("W")
+    ["Usage_kWh"]
+    .sum()
+    .reset_index()
     )
 
     fig = px.area(
