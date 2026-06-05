@@ -320,6 +320,14 @@ def preprocess_data(df):
         .astype(str)
         .str.strip()
     )
+     if "date" in df.columns:
+
+        df.rename(
+            columns={
+                "date": "Date"
+            },
+            inplace=True
+        )
 
     validation = validate_dataset(df)
 
