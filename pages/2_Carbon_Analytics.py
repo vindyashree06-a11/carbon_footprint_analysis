@@ -65,12 +65,10 @@ daily_emissions = (
 )
 
 monthly_emissions = (
-    df.groupby(
-        pd.Grouper(
-            key=date_col,
-            freq="M"
-        )
-    )["CO2(tCO2)"]
+    df
+    .set_index(date_col)
+    .resample("ME")
+    ["CO2(tCO2)"]
     .sum()
     .reset_index()
 )
