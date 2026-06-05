@@ -206,18 +206,18 @@ with right:
     .reset_index()
     )
 
-        fig = px.line(
-            monthly,
-            x=date_col,
-            y="CO2(tCO2)",
-            markers=True,
-            title="Monthly Carbon Trend"
-        )
+    fig = px.line(
+        monthly,
+        x=date_col,
+        y="CO2(tCO2)",
+        markers=True,
+        title="Monthly Carbon Trend"
+    )
 
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
 
 # ---------------------------------------------------
 # LOAD TYPE ANALYSIS
