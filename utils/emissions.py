@@ -1,7 +1,6 @@
 # utils/emissions.py
 
 import pandas as pd
-import numpy as np
 import logging
 
 # -----------------------------------------------------
@@ -20,20 +19,16 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------
 
 def total_emissions(df):
+    return float(df["CO2(tCO2)"].sum())
 
-    return float(
-        df["CO2(tCO2)"].sum()
-    )
 
 # -----------------------------------------------------
 # AVERAGE EMISSIONS
 # -----------------------------------------------------
 
 def average_emissions(df):
+    return float(df["CO2(tCO2)"].mean())
 
-    return float(
-        df["CO2(tCO2)"].mean()
-    )
 
 # -----------------------------------------------------
 # DAILY EMISSIONS
@@ -51,16 +46,14 @@ def daily_emissions(df):
         errors="coerce"
     )
 
-    daily = (
+    temp = temp.dropna(subset=["Date"])
 
+    daily = (
         temp.groupby(
             temp["Date"].dt.date
         )["CO2(tCO2)"]
-
         .sum()
-
         .reset_index()
-
     )
 
     daily.columns = [
@@ -69,6 +62,7 @@ def daily_emissions(df):
     ]
 
     return daily
+
 
 # -----------------------------------------------------
 # WEEKLY EMISSIONS
@@ -82,22 +76,19 @@ def weekly_emissions(df):
     temp = df.copy()
 
     temp["Date"] = pd.to_datetime(
-        temp["Date"]
+        temp["Date"],
+        errors="coerce"
     )
 
+    temp = temp.dropna(subset=["Date"])
+
     weekly = (
-
-        temp.groupby(
-            pd.Grouper(
-                key="Date",
-                freq="W"
-            )
-        )["CO2(tCO2)"]
-
+        temp
+        .set_index("Date")
+        .resample("W")
+        ["CO2(tCO2)"]
         .sum()
-
         .reset_index()
-
     )
 
     weekly.columns = [
@@ -106,6 +97,7 @@ def weekly_emissions(df):
     ]
 
     return weekly
+
 
 # -----------------------------------------------------
 # MONTHLY EMISSIONS
@@ -119,22 +111,19 @@ def monthly_emissions(df):
     temp = df.copy()
 
     temp["Date"] = pd.to_datetime(
-        temp["Date"]
+        temp["Date"],
+        errors="coerce"
     )
 
+    temp = temp.dropna(subset=["Date"])
+
     monthly = (
-
-        temp.groupby(
-            pd.Grouper(
-                key="Date",
-                freq="M"
-            )
-        )["CO2(tCO2)"]
-
+        temp
+        .set_index("Date")
+        .resample("ME")
+        ["CO2(tCO2)"]
         .sum()
-
         .reset_index()
-
     )
 
     monthly.columns = [
@@ -143,6 +132,7 @@ def monthly_emissions(df):
     ]
 
     return monthly
+
 
 # -----------------------------------------------------
 # YEARLY EMISSIONS
@@ -156,22 +146,19 @@ def yearly_emissions(df):
     temp = df.copy()
 
     temp["Date"] = pd.to_datetime(
-        temp["Date"]
+        temp["Date"],
+        errors="coerce"
     )
 
+    temp = temp.dropna(subset=["Date"])
+
     yearly = (
-
-        temp.groupby(
-            pd.Grouper(
-                key="Date",
-                freq="Y"
-            )
-        )["CO2(tCO2)"]
-
+        temp
+        .set_index("Date")
+        .resample("YE")
+        ["CO2(tCO2)"]
         .sum()
-
         .reset_index()
-
     )
 
     yearly.columns = [
@@ -180,6 +167,7 @@ def yearly_emissions(df):
     ]
 
     return yearly
+
 
 # -----------------------------------------------------
 # ANNUALIZED EMISSIONS
@@ -193,8 +181,14 @@ def annualized_emissions(df):
     temp = df.copy()
 
     temp["Date"] = pd.to_datetime(
-        temp["Date"]
+        temp["Date"],
+        errors="coerce"
     )
+
+    temp = temp.dropna(subset=["Date"])
+
+    if temp.empty:
+        return 0
 
     days = max(
         1,
@@ -207,10 +201,8 @@ def annualized_emissions(df):
 
     annualized = (
         total_emissions(temp)
-        *
-        365
-        /
-        days
+        * 365
+        / days
     )
 
     return round(
@@ -218,42 +210,43 @@ def annualized_emissions(df):
         2
     )
 
+
 # -----------------------------------------------------
 # LOAD TYPE CONTRIBUTION
 # -----------------------------------------------------
 
 def load_type_emissions(df):
 
+    if "Load_Type" not in df.columns:
+        return pd.DataFrame()
+
     result = (
-
         df.groupby("Load_Type")
-
         ["CO2(tCO2)"]
-
         .sum()
-
         .reset_index()
-
         .sort_values(
             "CO2(tCO2)",
             ascending=False
         )
-
     )
 
     total = result["CO2(tCO2)"].sum()
 
-    result["Contribution_%"] = (
+    if total > 0:
 
-        result["CO2(tCO2)"]
+        result["Contribution_%"] = (
+            result["CO2(tCO2)"]
+            / total
+            * 100
+        )
 
-        / total
+    else:
 
-        * 100
-
-    )
+        result["Contribution_%"] = 0
 
     return result
+
 
 # -----------------------------------------------------
 # CARBON INTENSITY
@@ -266,16 +259,14 @@ def carbon_intensity(df):
         .sum()
     )
 
-    if total_energy == 0:
+    if total_energy <= 0:
         return 0
 
     return (
-
         df["CO2(tCO2)"].sum()
-
         / total_energy
-
     )
+
 
 # -----------------------------------------------------
 # EMISSION DISTRIBUTION
@@ -284,37 +275,14 @@ def carbon_intensity(df):
 def emission_distribution(df):
 
     return {
-
-        "min":
-            float(
-                df["CO2(tCO2)"].min()
-            ),
-
-        "max":
-            float(
-                df["CO2(tCO2)"].max()
-            ),
-
-        "mean":
-            float(
-                df["CO2(tCO2)"].mean()
-            ),
-
-        "median":
-            float(
-                df["CO2(tCO2)"].median()
-            ),
-
-        "std":
-            float(
-                df["CO2(tCO2)"].std()
-            ),
-
-        "variance":
-            float(
-                df["CO2(tCO2)"].var()
-            )
+        "min": float(df["CO2(tCO2)"].min()),
+        "max": float(df["CO2(tCO2)"].max()),
+        "mean": float(df["CO2(tCO2)"].mean()),
+        "median": float(df["CO2(tCO2)"].median()),
+        "std": float(df["CO2(tCO2)"].std()),
+        "variance": float(df["CO2(tCO2)"].var())
     }
+
 
 # -----------------------------------------------------
 # EMISSION TREND
@@ -328,41 +296,32 @@ def emission_growth_rate(df):
         return 0
 
     growth = (
-
         monthly["Monthly_Emissions"]
-
         .pct_change()
-
         .mean()
-
         * 100
-
     )
 
     return round(
-        growth,
+        float(growth),
         2
     )
+
 
 # -----------------------------------------------------
 # TOP EMISSION RECORDS
 # -----------------------------------------------------
 
-def top_emitters(
-    df,
-    top_n=20
-):
+def top_emitters(df, top_n=20):
 
     return (
-
         df.sort_values(
             "CO2(tCO2)",
             ascending=False
         )
-
         .head(top_n)
-
     )
+
 
 # -----------------------------------------------------
 # EMISSION SUMMARY
@@ -371,18 +330,11 @@ def top_emitters(
 def emission_summary(df):
 
     return {
-
         "total_emission":
-            round(
-                total_emissions(df),
-                2
-            ),
+            round(total_emissions(df), 2),
 
         "average_emission":
-            round(
-                average_emissions(df),
-                4
-            ),
+            round(average_emissions(df), 4),
 
         "annualized_emission":
             annualized_emissions(df),
@@ -397,8 +349,9 @@ def emission_summary(df):
             emission_growth_rate(df)
     }
 
+
 # -----------------------------------------------------
-# ESG TARGET CALCULATIONS
+# ESG TARGETS
 # -----------------------------------------------------
 
 def esg_targets(
@@ -410,19 +363,14 @@ def esg_targets(
 
     target = (
         current *
-        (
-            1 -
-            reduction_target / 100
-        )
+        (1 - reduction_target / 100)
     )
 
     reduction_needed = (
-        current -
-        target
+        current - target
     )
 
     return {
-
         "current_emissions":
             round(current, 2),
 
@@ -436,8 +384,9 @@ def esg_targets(
             reduction_target
     }
 
+
 # -----------------------------------------------------
-# CARBON SAVINGS ESTIMATOR
+# CARBON SAVINGS
 # -----------------------------------------------------
 
 def estimate_carbon_savings(
@@ -446,22 +395,17 @@ def estimate_carbon_savings(
 ):
 
     savings = (
-
         current_emissions
-
         * reduction_percent
-
         / 100
-
     )
 
     future_emissions = (
-        current_emissions -
-        savings
+        current_emissions
+        - savings
     )
 
     return {
-
         "carbon_saved":
             round(savings, 2),
 
@@ -472,6 +416,7 @@ def estimate_carbon_savings(
             )
     }
 
+
 # -----------------------------------------------------
 # EMISSION REPORT
 # -----------------------------------------------------
@@ -479,18 +424,11 @@ def estimate_carbon_savings(
 def generate_emission_report(df):
 
     report = {
-
         "Total Emissions":
-            round(
-                total_emissions(df),
-                2
-            ),
+            round(total_emissions(df), 2),
 
         "Average Emissions":
-            round(
-                average_emissions(df),
-                4
-            ),
+            round(average_emissions(df), 4),
 
         "Annualized Emissions":
             annualized_emissions(df),
@@ -512,6 +450,7 @@ def generate_emission_report(df):
             "Value"
         ]
     )
+
 
 # -----------------------------------------------------
 # TEST
