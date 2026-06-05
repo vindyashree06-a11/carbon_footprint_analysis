@@ -9,8 +9,7 @@ import plotly.express as px
 
 from sklearn.model_selection import (
     train_test_split,
-    cross_val_score,
-    GridSearchCV
+    cross_val_score
 )
 
 from sklearn.pipeline import Pipeline
@@ -53,20 +52,31 @@ if "data" not in st.session_state:
 
 df = st.session_state["data"].copy()
 
+TARGET = "CO2(tCO2)"
+
 # ---------------------------------------------------
-# TARGET
+# DATA CLEANING
 # ---------------------------------------------------
 
-TARGET = "CO2(tCO2)"
+df = df.replace(
+    [np.inf, -np.inf],
+    np.nan
+)
+
+df = df.dropna(
+    subset=[TARGET]
+)
+
+df = df.fillna(0)
 
 # ---------------------------------------------------
 # FEATURE SELECTION
 # ---------------------------------------------------
 
-exclude_cols = [
-    TARGET,
-    "Date"
-]
+exclude_cols = [TARGET]
+
+if "Date" in df.columns:
+    exclude_cols.append("Date")
 
 features = [
     c for c in df.columns
@@ -75,10 +85,30 @@ features = [
 
 X = df[features].copy()
 
-# encode categoricals
+# Handle categorical columns
 
-for col in X.select_dtypes(include="object").columns:
-    X[col] = X[col].astype("category").cat.codes
+cat_cols = X.select_dtypes(
+    include=["object", "string", "category"]
+).columns
+
+for col in cat_cols:
+
+    X[col] = (
+        X[col]
+        .astype(str)
+        .fillna("Unknown")
+    )
+
+X = pd.get_dummies(
+    X,
+    columns=cat_cols,
+    drop_first=True
+)
+
+X = X.replace(
+    [np.inf, -np.inf],
+    np.nan
+)
 
 X = X.fillna(0)
 
@@ -96,7 +126,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # ---------------------------------------------------
-# MODEL TRAINING BUTTON
+# TRAIN MODELS
 # ---------------------------------------------------
 
 if st.button("🚀 Train Models"):
@@ -106,26 +136,36 @@ if st.button("🚀 Train Models"):
         results = []
 
         models = {
-            "Linear Regression": LinearRegression(),
+            "Linear Regression":
+                LinearRegression(),
 
-            "Random Forest": RandomForestRegressor(
-                random_state=42
-            ),
+            "Random Forest":
+                RandomForestRegressor(
+                    n_estimators=200,
+                    random_state=42
+                ),
 
-            "Gradient Boosting": GradientBoostingRegressor(
-                random_state=42
-            )
+            "Gradient Boosting":
+                GradientBoostingRegressor(
+                    random_state=42
+                )
         }
 
         best_model = None
-        best_score = -999
         best_name = ""
+        best_score = -999999
 
         for name, model in models.items():
 
             pipeline = Pipeline([
-                ("scaler", StandardScaler()),
-                ("model", model)
+                (
+                    "scaler",
+                    StandardScaler()
+                ),
+                (
+                    "model",
+                    model
+                )
             ])
 
             pipeline.fit(
@@ -133,7 +173,9 @@ if st.button("🚀 Train Models"):
                 y_train
             )
 
-            preds = pipeline.predict(X_test)
+            preds = pipeline.predict(
+                X_test
+            )
 
             r2 = r2_score(
                 y_test,
@@ -185,19 +227,32 @@ if st.button("🚀 Train Models"):
             exist_ok=True
         )
 
-        joblib.dump(
-            best_model,
-            "models/carbon_model.pkl"
-        )
+        try:
 
-        st.session_state["best_model"] = best_model
-        st.session_state["best_model_name"] = best_name
+            joblib.dump(
+                best_model,
+                "models/carbon_model.pkl"
+            )
+
+        except Exception as e:
+
+            st.warning(
+                f"Model save failed: {e}"
+            )
+
+        st.session_state[
+            "best_model"
+        ] = best_model
+
+        st.session_state[
+            "best_model_name"
+        ] = best_name
 
         result_df = pd.DataFrame(
             results,
             columns=[
                 "Model",
-                "R2",
+                "R²",
                 "RMSE",
                 "MAE",
                 "CV Score"
@@ -221,38 +276,63 @@ if st.button("🚀 Train Models"):
 # LOAD MODEL
 # ---------------------------------------------------
 
-if "best_model" not in st.session_state:
+if "best_model" in st.session_state:
+
+    model = st.session_state[
+        "best_model"
+    ]
+
+else:
 
     if os.path.exists(
         "models/carbon_model.pkl"
     ):
 
-        model = joblib.load(
-            "models/carbon_model.pkl"
-        )
+        try:
+
+            model = joblib.load(
+                "models/carbon_model.pkl"
+            )
+
+        except Exception:
+
+            st.error(
+                """
+                Saved model is incompatible
+                with current Python/sklearn
+                version.
+
+                Delete:
+                models/carbon_model.pkl
+
+                Then retrain.
+                """
+            )
+
+            st.stop()
 
     else:
 
         st.info(
-            "Train model first."
+            "Train a model first."
         )
 
         st.stop()
-
-else:
-
-    model = st.session_state["best_model"]
 
 # ---------------------------------------------------
 # FEATURE IMPORTANCE
 # ---------------------------------------------------
 
 st.markdown("---")
-st.subheader("📈 Feature Importance")
+st.subheader(
+    "📈 Feature Importance"
+)
 
 try:
 
-    reg = model.named_steps["model"]
+    reg = model.named_steps[
+        "model"
+    ]
 
     if hasattr(
         reg,
@@ -261,7 +341,8 @@ try:
 
         importance = pd.DataFrame({
 
-            "Feature": X.columns,
+            "Feature":
+                X.columns,
 
             "Importance":
                 reg.feature_importances_
@@ -277,7 +358,8 @@ try:
             importance.head(15),
             x="Importance",
             y="Feature",
-            orientation="h"
+            orientation="h",
+            title="Top 15 Features"
         )
 
         st.plotly_chart(
@@ -285,17 +367,20 @@ try:
             use_container_width=True
         )
 
-except:
+except Exception:
+
     st.info(
         "Feature importance unavailable."
     )
 
 # ---------------------------------------------------
-# SINGLE RECORD PREDICTION
+# PREDICTION
 # ---------------------------------------------------
 
 st.markdown("---")
-st.subheader("🎯 Predict Emissions")
+st.subheader(
+    "🎯 Predict Emissions"
+)
 
 latest_record = X.iloc[-1:]
 
@@ -313,12 +398,12 @@ st.metric(
 # ---------------------------------------------------
 
 st.markdown("---")
-st.subheader("📅 Next Day Forecast")
-
-next_day = latest_record.copy()
+st.subheader(
+    "📅 Next Day Forecast"
+)
 
 next_day_prediction = model.predict(
-    next_day
+    latest_record
 )[0]
 
 st.metric(
@@ -327,19 +412,21 @@ st.metric(
 )
 
 # ---------------------------------------------------
-# NEXT WEEK FORECAST
+# WEEK FORECAST
 # ---------------------------------------------------
 
 st.markdown("---")
-st.subheader("📆 Next Week Forecast")
+st.subheader(
+    "📆 Next Week Forecast"
+)
 
 forecast_7 = []
 
-base = latest_record.copy()
+for _ in range(7):
 
-for i in range(7):
-
-    pred = model.predict(base)[0]
+    pred = model.predict(
+        latest_record
+    )[0]
 
     forecast_7.append(pred)
 
@@ -366,17 +453,21 @@ st.plotly_chart(
 )
 
 # ---------------------------------------------------
-# MONTHLY FORECAST
+# MONTH FORECAST
 # ---------------------------------------------------
 
 st.markdown("---")
-st.subheader("📊 Monthly Emission Forecast")
+st.subheader(
+    "📊 Monthly Forecast"
+)
 
 forecast_30 = []
 
-for i in range(30):
+for _ in range(30):
 
-    pred = model.predict(base)[0]
+    pred = model.predict(
+        latest_record
+    )[0]
 
     forecast_30.append(pred)
 
@@ -402,15 +493,16 @@ st.plotly_chart(
 )
 
 # ---------------------------------------------------
-# FORECAST SUMMARY
+# SUMMARY
 # ---------------------------------------------------
 
-st.subheader("📋 Forecast Summary")
+st.subheader(
+    "📋 Forecast Summary"
+)
 
 c1, c2, c3 = st.columns(3)
 
 with c1:
-
     st.metric(
         "Next Day",
         round(
@@ -420,7 +512,6 @@ with c1:
     )
 
 with c2:
-
     st.metric(
         "7-Day Total",
         round(
@@ -430,7 +521,6 @@ with c2:
     )
 
 with c3:
-
     st.metric(
         "30-Day Total",
         round(
@@ -440,7 +530,7 @@ with c3:
     )
 
 # ---------------------------------------------------
-# FORECAST TABLE
+# TABLE
 # ---------------------------------------------------
 
 st.subheader(
@@ -461,14 +551,14 @@ csv = monthly_forecast.to_csv(
 )
 
 st.download_button(
-    label="⬇ Download Forecast",
-    data=csv,
-    file_name="monthly_forecast.csv",
-    mime="text/csv"
+    "⬇ Download Forecast",
+    csv,
+    "monthly_forecast.csv",
+    "text/csv"
 )
 
 # ---------------------------------------------------
-# MODEL INFO
+# INFO
 # ---------------------------------------------------
 
 st.markdown("---")
@@ -478,13 +568,11 @@ st.info(
     Models Evaluated
 
     • Linear Regression
-
     • Random Forest Regressor
-
     • Gradient Boosting Regressor
 
-    Best model is automatically selected
-    based on highest R² Score.
+    Best model is selected automatically
+    using highest R² score.
     """
 )
 
