@@ -20,27 +20,16 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------
 
 REQUIRED_COLUMNS = [
-
     "Usage_kWh",
-
     "Lagging_Current_Reactive.Power_kVarh",
-
     "Leading_Current_Reactive_Power_kVarh",
-
     "CO2(tCO2)",
-
     "Lagging_Current_Power_Factor",
-
     "Leading_Current_Power_Factor",
-
     "NSM",
-
     "WeekStatus",
-
     "Day_of_week",
-
     "Load_Type",
-
     "Date"
 ]
 
@@ -50,16 +39,10 @@ REQUIRED_COLUMNS = [
 
 def validate_dataset(df):
 
-    """
-    Validate required columns.
-    """
-
     missing_cols = [
-
         col
         for col in REQUIRED_COLUMNS
         if col not in df.columns
-
     ]
 
     return {
@@ -68,14 +51,10 @@ def validate_dataset(df):
     }
 
 # ---------------------------------------------------
-# PARSE DATE COLUMN
+# PARSE DATE
 # ---------------------------------------------------
 
 def parse_dates(df):
-
-    """
-    Convert Date column to datetime.
-    """
 
     if "Date" in df.columns:
 
@@ -87,103 +66,19 @@ def parse_dates(df):
     return df
 
 # ---------------------------------------------------
-# REMOVE DUPLICATES
-# ---------------------------------------------------
-
-def remove_duplicates(df):
-
-    before = len(df)
-
-    df = df.drop_duplicates()
-
-    after = len(df)
-
-    removed = before - after
-
-    logger.info(
-        f"Removed {removed} duplicate rows."
-    )
-
-    return df, removed
-
-# ---------------------------------------------------
-# HANDLE MISSING VALUES
-# ---------------------------------------------------
-
-def handle_missing_values(df):
-
-    """
-    Numerical -> Median
-    Categorical -> Mode
-    """
-
-    missing_before = (
-        df.isnull()
-        .sum()
-        .sum()
-    )
-
-    num_cols = df.select_dtypes(
-        include=np.number
-    ).columns
-
-    cat_cols = df.select_dtypes(
-        exclude=np.number
-    ).columns
-
-    for col in num_cols:
-
-        df[col] = df[col].fillna(
-            df[col].median()
-        )
-
-    for col in cat_cols:
-
-        if not df[col].mode().empty:
-
-            df[col] = df[col].fillna(
-                df[col].mode()[0]
-            )
-
-    missing_after = (
-        df.isnull()
-        .sum()
-        .sum()
-    )
-
-    logger.info(
-        f"Missing values fixed: "
-        f"{missing_before - missing_after}"
-    )
-
-    return df
-
-# ---------------------------------------------------
-# CONVERT DATA TYPES
+# DATA TYPES
 # ---------------------------------------------------
 
 def convert_data_types(df):
 
-    """
-    Ensure correct dtypes.
-    """
-
     numeric_cols = [
-
         "Usage_kWh",
-
         "Lagging_Current_Reactive.Power_kVarh",
-
         "Leading_Current_Reactive_Power_kVarh",
-
         "CO2(tCO2)",
-
         "Lagging_Current_Power_Factor",
-
         "Leading_Current_Power_Factor",
-
         "NSM"
-
     ]
 
     for col in numeric_cols:
@@ -198,20 +93,64 @@ def convert_data_types(df):
     return df
 
 # ---------------------------------------------------
-# OUTLIER DETECTION
+# MISSING VALUES
 # ---------------------------------------------------
 
-def detect_outliers_iqr(df):
-
-    """
-    Detect outliers using IQR.
-    """
+def handle_missing_values(df):
 
     numeric_cols = df.select_dtypes(
         include=np.number
     ).columns
 
-    outlier_report = {}
+    categorical_cols = df.select_dtypes(
+        exclude=np.number
+    ).columns
+
+    for col in numeric_cols:
+
+        df[col] = df[col].fillna(
+            df[col].median()
+        )
+
+    for col in categorical_cols:
+
+        if not df[col].mode().empty:
+
+            df[col] = df[col].fillna(
+                df[col].mode()[0]
+            )
+
+    return df
+
+# ---------------------------------------------------
+# DUPLICATES
+# ---------------------------------------------------
+
+def remove_duplicates(df):
+
+    before = len(df)
+
+    df = df.drop_duplicates()
+
+    removed = before - len(df)
+
+    logger.info(
+        f"Removed {removed} duplicate rows."
+    )
+
+    return df, removed
+
+# ---------------------------------------------------
+# OUTLIERS
+# ---------------------------------------------------
+
+def detect_outliers_iqr(df):
+
+    numeric_cols = df.select_dtypes(
+        include=np.number
+    ).columns
+
+    report = {}
 
     for col in numeric_cols:
 
@@ -231,63 +170,23 @@ def detect_outliers_iqr(df):
             ]
         )
 
-        outlier_report[col] = count
+        report[col] = count
 
-    return outlier_report
-
-# ---------------------------------------------------
-# REMOVE OUTLIERS
-# ---------------------------------------------------
-
-def remove_outliers_iqr(df):
-
-    """
-    Remove IQR outliers.
-    """
-
-    numeric_cols = df.select_dtypes(
-        include=np.number
-    ).columns
-
-    cleaned = df.copy()
-
-    for col in numeric_cols:
-
-        q1 = cleaned[col].quantile(0.25)
-        q3 = cleaned[col].quantile(0.75)
-
-        iqr = q3 - q1
-
-        lower = q1 - 1.5 * iqr
-        upper = q3 + 1.5 * iqr
-
-        cleaned = cleaned[
-            (cleaned[col] >= lower)
-            &
-            (cleaned[col] <= upper)
-        ]
-
-    logger.info(
-        f"Rows after outlier removal: {len(cleaned)}"
-    )
-
-    return cleaned
+    return report
 
 # ---------------------------------------------------
-# DATA QUALITY REPORT
+# QUALITY REPORT
 # ---------------------------------------------------
 
 def generate_quality_report(df):
 
-    """
-    Generate dataset quality metrics.
-    """
+    return {
 
-    report = {
+        "rows":
+            len(df),
 
-        "rows": len(df),
-
-        "columns": len(df.columns),
+        "columns":
+            len(df.columns),
 
         "missing_values":
             int(
@@ -312,8 +211,6 @@ def generate_quality_report(df):
             )
     }
 
-    return report
-
 # ---------------------------------------------------
 # WEEKLY SUMMARY
 # ---------------------------------------------------
@@ -324,7 +221,7 @@ def weekly_usage_summary(df):
 
         return pd.DataFrame()
 
-    weekly = (
+    return (
 
         df.groupby(
             pd.Grouper(
@@ -341,15 +238,13 @@ def weekly_usage_summary(df):
 
     )
 
-    return weekly
-
 # ---------------------------------------------------
 # LOAD TYPE SUMMARY
 # ---------------------------------------------------
 
 def load_type_summary(df):
 
-    summary = (
+    return (
 
         df.groupby("Load_Type")
 
@@ -376,58 +271,55 @@ def load_type_summary(df):
 
     )
 
-    return summary
-
 # ---------------------------------------------------
-# EMISSION SUMMARY
+# CARBON SUMMARY
 # ---------------------------------------------------
 
 def carbon_summary(df):
 
-    total_emission = (
-        df["CO2(tCO2)"]
-        .sum()
-    )
-
-    avg_emission = (
-        df["CO2(tCO2)"]
-        .mean()
-    )
-
-    max_emission = (
-        df["CO2(tCO2)"]
-        .max()
-    )
-
-    min_emission = (
-        df["CO2(tCO2)"]
-        .min()
-    )
-
     return {
 
         "total_emission":
-            round(total_emission, 4),
+            round(
+                df["CO2(tCO2)"].sum(),
+                4
+            ),
 
         "average_emission":
-            round(avg_emission, 4),
+            round(
+                df["CO2(tCO2)"].mean(),
+                4
+            ),
 
         "max_emission":
-            round(max_emission, 4),
+            round(
+                df["CO2(tCO2)"].max(),
+                4
+            ),
 
         "min_emission":
-            round(min_emission, 4)
+            round(
+                df["CO2(tCO2)"].min(),
+                4
+            )
     }
 
 # ---------------------------------------------------
-# COMPLETE PIPELINE
+# MAIN PREPROCESSING FUNCTION
 # ---------------------------------------------------
 
 def preprocess_data(df):
 
     """
-    Complete preprocessing pipeline.
+    Main preprocessing pipeline.
+    Returns cleaned dataframe.
     """
+
+    df.columns = (
+        df.columns
+        .astype(str)
+        .str.strip()
+    )
 
     validation = validate_dataset(df)
 
@@ -446,68 +338,6 @@ def preprocess_data(df):
 
     df, duplicates_removed = (
         remove_duplicates(df)
-    )
-
-    outlier_report = (
-        detect_outliers_iqr(df)
-    )
-
-    quality_report = (
-        generate_quality_report(df)
-    )
-
-    return {
-
-        "data": df,
-
-        "duplicates_removed":
-            duplicates_removed,
-# ---------------------------------------------------
-# COMPLETE PIPELINE
-# ---------------------------------------------------
-
-def preprocess_data(df):
-
-    """
-    Complete preprocessing pipeline.
-
-    Returns cleaned dataframe.
-    """
-
-    # Clean column names
-    df.columns = (
-        df.columns
-        .astype(str)
-        .str.strip()
-    )
-
-    validation = validate_dataset(df)
-
-    if not validation["valid"]:
-
-        logger.error(
-            f"Missing columns: "
-            f"{validation['missing_columns']}"
-        )
-
-        raise ValueError(
-            "Dataset validation failed.\n"
-            f"Missing columns: "
-            f"{validation['missing_columns']}"
-        )
-
-    df = parse_dates(df)
-
-    df = convert_data_types(df)
-
-    df = handle_missing_values(df)
-
-    df, duplicates_removed = (
-        remove_duplicates(df)
-    )
-
-    outlier_report = (
-        detect_outliers_iqr(df)
     )
 
     quality_report = (
@@ -531,7 +361,7 @@ def preprocess_data(df):
     return df
 
 # ---------------------------------------------------
-# MAIN TEST
+# TEST
 # ---------------------------------------------------
 
 if __name__ == "__main__":
