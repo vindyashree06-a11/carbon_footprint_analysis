@@ -97,7 +97,10 @@ carbon_intensity = (
 
 esg_results = calculate_esg(df)
 
-esg_score = esg_results["score"]
+esg_score = esg_results.get(
+    "score",
+    0
+)
 
 active_alerts = 0
 
