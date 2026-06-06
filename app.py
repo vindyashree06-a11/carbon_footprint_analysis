@@ -99,7 +99,7 @@ with st.sidebar:
 
     st.image(
         "assets/logo.png",
-        use_container_width=True
+        width="stretch"
     )
 
     st.markdown("## ESG Intelligence Platform")
@@ -138,9 +138,12 @@ def initialize_database():
 
         mongo = MongoDBManager()
 
+        # Verify actual Atlas connection
+        mongo.client.admin.command("ping")
+
         st.session_state.mongo_connected = True
 
-        logger.info("MongoDB Connected")
+        logger.info("MongoDB Connected Successfully")
 
         return mongo
 
@@ -198,21 +201,23 @@ with col1:
 
 with col2:
 
-    st.metric(
-        "Dataset",
-        "Loaded"
-        if st.session_state.data_loaded
-        else "Not Loaded"
-    )
+   st.metric(
+    "Dataset",
+    "Loaded"
+    if st.session_state.dataset is not None
+    else "Not Loaded"
+   )
 
 with col3:
 
-    st.metric(
-        "Model",
-        "Ready"
-        if st.session_state.model_trained
-        else "Not Trained"
+ st.metric(
+    "Model",
+    "Ready"
+    if os.path.exists(
+        "models/best_carbon_model.pkl"
     )
+    else "Not Trained"
+)
 
 with col4:
 
@@ -248,17 +253,27 @@ if uploaded_file:
             f"Dataset Loaded Successfully ({df.shape[0]} rows)"
         )
 
-        if mongo:
+       if mongo and hasattr(
+    mongo,
+    "insert_dataset_log"
+):
 
-            mongo.insert_dataset_log(
-                {
-                    "filename": uploaded_file.name,
-                    "rows": int(df.shape[0]),
-                    "columns": int(df.shape[1]),
-                    "upload_time": datetime.utcnow()
-                }
-            )
+    try:
 
+        mongo.insert_dataset_log(
+            {
+                "filename": uploaded_file.name,
+                "rows": int(df.shape[0]),
+                "columns": int(df.shape[1]),
+                "upload_time": datetime.utcnow()
+            }
+        )
+
+    except Exception as e:
+
+        logger.error(
+            f"Dataset Log Error: {e}"
+        )
         logger.info(
             f"Dataset Uploaded: {uploaded_file.name}"
         )
@@ -279,7 +294,7 @@ if st.session_state.data_loaded:
 
     st.dataframe(
         st.session_state.dataset.head(),
-        use_container_width=True
+       width="stretch"
     )
 
     rows = st.session_state.dataset.shape[0]
