@@ -1,335 +1,284 @@
-# 🌍 Steel Industry Carbon Footprint & ESG Analytics Platform
+# 🏭 Steel Industry Carbon Footprint & ESG Analytics Platform
 
-## Overview
+## AI-Powered Carbon Forecasting, ESG Intelligence & Digital Twin System
 
-The **Steel Industry Carbon Footprint & ESG Analytics Platform** is an enterprise-grade analytics and machine learning application designed to monitor, analyze, predict, and optimize carbon emissions within steel manufacturing operations.
+### Overview
+
+The Steel Industry Carbon Footprint & ESG Analytics Platform is an enterprise-grade sustainability intelligence solution designed for steel manufacturing facilities.
 
 The platform combines:
 
-* Carbon Footprint Analytics
+* Carbon Emission Analytics
 * ESG Compliance Monitoring
 * Machine Learning Forecasting
-* Energy Consumption Analysis
-* Anomaly Detection
-* Sustainability Intelligence
-* MongoDB Atlas Integration
+* Time Series Forecasting
+* AutoML Model Selection
+* Monte Carlo Risk Simulation
+* Facility Digital Twin
+* Future Scenario Simulation
+* MongoDB Atlas Data Management
 * Interactive Streamlit Dashboards
 
-The solution enables steel manufacturers to track sustainability performance, reduce emissions, improve energy efficiency, and align with ESG reporting requirements.
+The system enables organizations to analyze historical emissions, forecast future carbon footprints, evaluate ESG performance, simulate operational changes, and optimize sustainability strategies.
 
 ---
 
-# Features
+# Key Features
 
-## Phase 1 — Data Ingestion
+## Carbon Footprint Analytics
 
-### Upload Dataset
-
-Upload:
-
-```text
-Steel_industry_data.csv
-```
-
-Supported Columns:
-
-| Column                               |
-| ------------------------------------ |
-| Usage_kWh                            |
-| Lagging_Current_Reactive.Power_kVarh |
-| Leading_Current_Reactive_Power_kVarh |
-| CO2(tCO2)                            |
-| Lagging_Current_Power_Factor         |
-| Leading_Current_Power_Factor         |
-| NSM                                  |
-| WeekStatus                           |
-| Day_of_week                          |
-| Load_Type                            |
-| Date                                 |
-
-### Automated Data Quality Checks
-
-* Missing Value Handling
-* Duplicate Detection & Removal
-* Data Validation
-* Date Parsing
-* Data Type Conversion
-* Outlier Detection
-
-### Data Summaries
-
-* Dataset Preview
-* Descriptive Statistics
-* Load Type Summary
-* Weekly Usage Summary
-* Carbon Emission Summary
+* Daily Emission Analysis
+* Weekly Emission Analysis
+* Monthly Emission Analysis
+* Annualized Carbon Footprint
+* Carbon Intensity Monitoring
+* Emission Distribution Analysis
+* Load-Type Contribution Analysis
 
 ---
 
-# Carbon Footprint Analytics
+## ESG Compliance Engine
 
-The platform performs advanced emission analysis using:
+* ESG Compliance Score
+* Sustainability Rating
+* Carbon Reduction Tracking
+* ESG Progress Monitoring
+* Traffic-Light Compliance Status
 
-```text
-CO2(tCO2)
-```
+### Compliance Levels
 
-### Calculations
-
-* Daily Emissions
-* Weekly Emissions
-* Monthly Emissions
-* Annualized Emissions
-
-### KPIs
-
-* Total Carbon Footprint
-* Average Facility Emissions
-* Emission Contribution by Load Type
-* Carbon Intensity
-* Emission Distribution
+| Status | Description      |
+| ------ | ---------------- |
+| Green  | On Target        |
+| Yellow | Warning          |
+| Red    | Exceeding Target |
 
 ---
 
-# Feature Engineering
+## Machine Learning Prediction Center
 
-The system automatically generates advanced sustainability features.
+Supported Models:
 
-### Engineered Features
+* Linear Regression
+* Ridge Regression
+* Lasso Regression
+* ElasticNet
+* Random Forest Regressor
+* Extra Trees Regressor
+* Gradient Boosting Regressor
+* AdaBoost Regressor
+* HistGradientBoosting Regressor
+* XGBoost Regressor
+* LightGBM Regressor
+* CatBoost Regressor
 
-```text
-Total_Power_Consumption
-
-Reactive_Power_Ratio
-
-Carbon_Intensity
-
-Rolling_7_Day_Emission
-
-Rolling_30_Day_Emission
-
-Energy_Efficiency_Index
-
-Peak_Load_Flag
-
-Weekend_Flag
-
-Seasonal_Usage_Index
-
-Load_Type_Encoding
-```
-
-These features improve predictive performance and sustainability insights.
-
----
-
-# Machine Learning Engine
-
-## Objective
-
-Predict future carbon emissions.
-
-### Target Variable
-
-```text
-CO2(tCO2)
-```
-
-### Algorithms
-
-1. Linear Regression
-2. Random Forest Regressor
-3. Gradient Boosting Regressor
-
-### Automated Workflow
-
-* Data Split
-* Feature Scaling
-* Cross Validation
-* Hyperparameter Tuning
-* Model Evaluation
-* Best Model Selection
-
-### Metrics
+Performance Metrics:
 
 * R² Score
 * RMSE
 * MAE
+* MAPE
+* Cross Validation Score
 
-### Model Output
+---
+
+## AutoML Engine
+
+The platform automatically:
+
+* Trains all supported models
+* Performs Cross Validation
+* Runs Hyperparameter Optimization
+* Calculates Weighted Scores
+* Selects the Best Model
+* Saves Production Models
+
+Model Storage:
 
 ```text
-models/carbon_model.pkl
+models/
+├── carbon_model.pkl
+└── best_carbon_model.pkl
 ```
 
-### Forecasting
+Weighted Ranking Formula:
 
-The platform generates:
+40% R²
 
-* Next-Day Emission Forecast
-* Next-Week Emission Forecast
-* Monthly Carbon Forecast
+30% RMSE
 
----
+20% MAE
 
-# Anomaly Detection Center
-
-Isolation Forest is used for intelligent anomaly detection.
-
-### Detects
-
-* Energy Consumption Spikes
-* CO₂ Emission Spikes
-* Power Factor Deviations
-* Reactive Power Abnormalities
-* Load Pattern Anomalies
-
-### Alert System
-
-Each anomaly includes:
-
-* Alert Level
-* Severity Score
-* Root Cause Indicator
-
-Threshold Logic:
-
-```text
-1.5 × Rolling Median
-```
+10% Stability Score
 
 ---
 
-# ESG Compliance Engine
+## Future Scenario Lab
 
-The ESG module evaluates sustainability performance.
+Digital Twin powered simulation environment.
 
-### Metrics
+Users can modify:
 
-* Current Carbon Emissions
-* Target Emissions
-* Carbon Reduction %
-* Sustainability Progress
+* Energy Usage
+* Power Factor
+* Reactive Power
+* Production Growth
+* Load Mix
+* Renewable Energy Adoption
+* Carbon Reduction Initiatives
+* Energy Optimization Programs
+* Predictive Maintenance Plans
 
-### Traffic Light Status
+Instantly Predict:
 
-🟢 Green → On Target
-
-🟡 Yellow → Warning
-
-🔴 Red → Exceeding Target
-
-### Outputs
-
-* ESG Compliance Score
-* Sustainability Rating
-* Carbon Reduction Recommendations
-
----
-
-# Dashboard Modules
-
-## Executive Summary
-
-Executive-level KPIs:
-
-* Total Emissions
-* Average Daily Emissions
-* Carbon Intensity
-* ESG Score
-* Active Alerts
-* Energy Consumption
+* Future CO₂ Emissions
+* Future Energy Consumption
+* Future ESG Score
+* Future Carbon Intensity
+* Future Sustainability Rating
+* Future Anomaly Risk
 
 ---
 
-## Carbon Analytics
+## Time Series Forecasting
 
-Visual carbon monitoring and emission breakdowns.
+Supported Forecasting Models:
+
+* Prophet
+* SARIMA
+* Exponential Smoothing
+* Random Forest Time Series
+* XGBoost Time Series
+* LightGBM Time Series
+
+Forecast Horizons:
+
+* 30 Days
+* 90 Days
+* 180 Days
+* 365 Days
+
+Forecast Outputs:
+
+* Future Emissions
+* ESG Trends
+* Carbon Intensity Trends
+* Sustainability Score Forecasts
 
 ---
 
-## Prediction Center
+## Monte Carlo Simulation
 
-Machine learning forecasting dashboard.
+Risk Analysis Engine
 
----
+Simulation Runs:
 
-## ESG Dashboard
+1000 Iterations
 
-Compliance tracking and sustainability scoring.
+Outputs:
 
----
-
-## Load Analysis
-
-Industrial load behavior analysis.
+* Best Case Scenario
+* Average Case Scenario
+* Worst Case Scenario
+* Emission Probability Distribution
+* Carbon Budget Consumption
+* Risk Score
 
 ---
 
 ## Anomaly Detection Center
 
-Real-time anomaly monitoring.
+Powered by Isolation Forest
+
+Detects:
+
+* Usage Spikes
+* Emission Spikes
+* Reactive Power Anomalies
+* Power Factor Deviations
+* Load Pattern Abnormalities
+
+Generates:
+
+* Alert Levels
+* Severity Scores
+* Root Cause Indicators
 
 ---
 
-## Sustainability Insights
-
-AI-generated sustainability recommendations.
-
----
-
-# Advanced Visualizations
-
-The platform uses Plotly for interactive analytics.
-
-### Included Charts
-
-1. Carbon Emission Trend
-2. Monthly Forecast
-3. Energy Usage Trend
-4. CO₂ Histogram
-5. Carbon Intensity Trend
-6. Load Type Comparison
-7. ESG Gauge
-8. Anomaly Scatter Plot
-9. Energy Heatmap
-10. Feature Importance
-11. Weekly Emission Analysis
-12. Sustainability Progress Dashboard
-
----
-
-# AI Insights Engine
-
-The platform automatically generates insights such as:
+# Dashboard Pages
 
 ```text
-Heavy Load contributed 42% of total emissions.
+pages/
 
-Carbon emissions increased 11% compared to previous month.
-
-Peak consumption occurred on weekdays.
-
-Reactive power inefficiency is increasing emissions.
-
-ESG score improved by 8%.
+1_Executive_Summary.py
+2_Carbon_Analytics.py
+3_Prediction_Center.py
+4_ESG_Dashboard.py
+5_Load_Analysis.py
+6_Anomaly_Detection.py
+7_Sustainability_Insights.py
+8_Future_Scenario_Lab.py
+9_Model_Comparison.py
 ```
 
-### Recommendation Examples
+---
 
-* Optimize heavy-load operations.
-* Improve power factor correction.
-* Shift energy-intensive activities.
-* Reduce peak-hour consumption.
-* Upgrade energy-efficient equipment.
+# Project Structure
+
+```text
+project/
+
+├── app.py
+├── requirements.txt
+├── README.md
+
+├── config/
+
+├── data/
+
+├── models/
+
+├── pages/
+
+├── utils/
+
+├── assets/
+
+└── logs/
+```
+
+---
+
+# Dataset
+
+Expected Dataset:
+
+```text
+Steel_industry_data.csv
+```
+
+Columns:
+
+```text
+Usage_kWh
+Lagging_Current_Reactive.Power_kVarh
+Leading_Current_Reactive_Power_kVarh
+CO2(tCO2)
+Lagging_Current_Power_Factor
+Leading_Current_Power_Factor
+NSM
+WeekStatus
+Day_of_week
+Load_Type
+Date
+```
 
 ---
 
 # MongoDB Atlas Integration
 
-All results are persisted in MongoDB Atlas.
-
-### Collections
+Collections:
 
 ```text
 dataset_logs
@@ -343,65 +292,23 @@ alerts
 esg_reports
 
 insights
-```
 
-### Stored Data
+future_scenarios
 
-* Uploaded Datasets
-* Emission Reports
-* Predictions
-* ESG Reports
-* Alerts
-* AI Insights
+forecasts
 
----
+model_scores
 
-# Project Structure
+simulation_results
 
-```text
-project/
-
-├── app.py
-├── requirements.txt
-├── README.md
-
-├── data/
-
-├── models/
-│   └── carbon_model.pkl
-
-├── pages/
-│   ├── 1_Executive_Summary.py
-│   ├── 2_Carbon_Analytics.py
-│   ├── 3_Prediction_Center.py
-│   ├── 4_ESG_Dashboard.py
-│   ├── 5_Load_Analysis.py
-│   ├── 6_Anomaly_Detection.py
-│   └── 7_Sustainability_Insights.py
-
-├── utils/
-│   ├── preprocessing.py
-│   ├── feature_engineering.py
-│   ├── emissions.py
-│   ├── prediction.py
-│   ├── anomaly_detection.py
-│   ├── esg.py
-│   ├── insights.py
-│   ├── mongodb.py
-│   └── visualizations.py
-
-├── assets/
-
-├── logs/
-
-└── .env
+digital_twin
 ```
 
 ---
 
 # Installation
 
-Clone the repository.
+Clone Repository
 
 ```bash
 git clone https://github.com/yourusername/steel-esg-platform.git
@@ -409,27 +316,7 @@ git clone https://github.com/yourusername/steel-esg-platform.git
 cd steel-esg-platform
 ```
 
-Create virtual environment.
-
-```bash
-python -m venv venv
-```
-
-Activate environment.
-
-### Windows
-
-```bash
-venv\Scripts\activate
-```
-
-### Linux / Mac
-
-```bash
-source venv/bin/activate
-```
-
-Install dependencies.
+Install Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -439,19 +326,21 @@ pip install -r requirements.txt
 
 # Environment Variables
 
-Create a `.env` file.
+Create a `.env` file:
 
 ```env
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/
+MONGO_URI=your_mongodb_connection_string
 
-DATABASE_NAME=steel_esg_db
+DB_NAME=steel_esg
+
+MODEL_PATH=models/best_carbon_model.pkl
+
+LOG_LEVEL=INFO
 ```
 
 ---
 
-# Running the Application
-
-Start Streamlit.
+# Run Locally
 
 ```bash
 streamlit run app.py
@@ -465,158 +354,113 @@ http://localhost:8501
 
 ---
 
-# MongoDB Atlas Setup
+# Streamlit Cloud Deployment
 
-### Step 1
+Push Project to GitHub
 
-Create MongoDB Atlas account.
+Connect Repository to Streamlit Cloud
 
-### Step 2
-
-Create Cluster.
-
-### Step 3
-
-Create Database User.
-
-### Step 4
-
-Whitelist IP Address.
-
-### Step 5
-
-Copy Connection String.
-
-### Step 6
-
-Add Connection String to:
-
-```env
-MONGO_URI
-```
-
----
-
-# Deployment on Streamlit Cloud
-
-### Push to GitHub
-
-```bash
-git init
-
-git add .
-
-git commit -m "Initial Commit"
-
-git branch -M main
-
-git remote add origin REPOSITORY_URL
-
-git push -u origin main
-```
-
----
-
-### Streamlit Cloud
-
-Open:
+Deploy using:
 
 ```text
-https://share.streamlit.io
-```
-
-Choose:
-
-```text
-Repository
-
-Branch
-
 app.py
 ```
 
 Add Secrets:
 
 ```toml
-MONGO_URI="mongodb+srv://..."
-
-DATABASE_NAME="steel_esg_db"
+MONGO_URI="your_connection_string"
+DB_NAME="steel_esg"
 ```
 
-Deploy.
+---
+
+# Production Features
+
+* Streamlit Caching
+* Session State Management
+* MongoDB Persistence
+* Joblib Model Storage
+* Logging & Monitoring
+* Error Handling
+* AutoML Pipelines
+* GridSearchCV
+* RandomizedSearchCV
+* Forecast Confidence Intervals
+* Digital Twin Simulations
 
 ---
 
-# Logging & Monitoring
+# Visualizations
 
-Application logs are stored in:
+Implemented Using Plotly
 
-```text
-logs/app.log
-```
-
-Tracks:
-
-* Upload Events
-* Prediction Requests
-* ESG Calculations
-* Alerts
-* Errors
-
----
-
-# Security
-
-Production recommendations:
-
-* Store secrets in environment variables
-* Enable MongoDB authentication
-* Restrict Atlas network access
-* Use HTTPS deployment
-* Rotate credentials regularly
+* Carbon Trend Analysis
+* Forecast Confidence Bands
+* Monte Carlo Fan Charts
+* ESG Gauge Charts
+* Carbon Budget Tracker
+* Feature Importance Analysis
+* Model Leaderboard
+* Sustainability Dashboard
+* Forecast Heatmaps
+* Scenario Comparison Charts
 
 ---
 
-# Future Enhancements
+# Business Benefits
 
-### Advanced ML
+The platform enables organizations to:
 
-* XGBoost
-* LightGBM
-* CatBoost
-
-### Explainable AI
-
-* SHAP
-* LIME
-
-### Reporting
-
-* Automated ESG PDF Reports
-* Executive Sustainability Reports
-
-### Enterprise Features
-
-* User Authentication
-* Role-Based Access Control
-* Real-Time Monitoring
-* Scheduled Model Retraining
+* Reduce Carbon Emissions
+* Improve ESG Compliance
+* Optimize Energy Usage
+* Forecast Future Sustainability Performance
+* Evaluate Operational Scenarios
+* Identify Emission Risks
+* Support Executive Decision Making
 
 ---
 
 # Technology Stack
 
-| Layer               | Technology      |
-| ------------------- | --------------- |
-| Frontend            | Streamlit       |
-| Analytics           | Pandas          |
-| Numerical Computing | NumPy           |
-| Visualization       | Plotly          |
-| Machine Learning    | Scikit-Learn    |
-| Database            | MongoDB Atlas   |
-| Model Storage       | Joblib          |
-| Deployment          | Streamlit Cloud |
-| Version Control     | GitHub          |
+Frontend
+
+* Streamlit
+
+Data Analytics
+
+* Pandas
+* NumPy
+
+Machine Learning
+
+* Scikit-Learn
+* XGBoost
+* LightGBM
+* CatBoost
+
+Forecasting
+
+* Prophet
+* SARIMA
+* Exponential Smoothing
+
+Visualization
+
+* Plotly
+
+Database
+
+* MongoDB Atlas
+
+Deployment
+
+* Streamlit Cloud
+* Docker
+* AWS
+* Azure
+* Render
 
 ---
 
@@ -630,4 +474,6 @@ MIT License
 
 Steel Industry Carbon Footprint & ESG Analytics Platform
 
-Built using Python, Machine Learning, ESG Analytics, MongoDB Atlas, Plotly, and Streamlit.
+Enterprise Sustainability Intelligence Suite
+
+Version 2.0
