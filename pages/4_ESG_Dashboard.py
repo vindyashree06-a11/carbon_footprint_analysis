@@ -32,6 +32,47 @@ if "data" not in st.session_state:
 df = st.session_state["data"].copy()
 
 # ---------------------------------------------------------
+# REQUIRED COLUMNS CHECK
+# ---------------------------------------------------------
+
+required_cols = [
+    "CO2(tCO2)",
+    "Usage_kWh"
+]
+
+missing = [
+    col for col in required_cols
+    if col not in df.columns
+]
+
+if missing:
+    st.error(
+        f"Missing required columns: {missing}"
+    )
+    st.stop()
+
+# ---------------------------------------------------------
+# CLEAN DATA
+# ---------------------------------------------------------
+
+df["CO2(tCO2)"] = pd.to_numeric(
+    df["CO2(tCO2)"],
+    errors="coerce"
+)
+
+df["Usage_kWh"] = pd.to_numeric(
+    df["Usage_kWh"],
+    errors="coerce"
+)
+
+df = df.replace(
+    [np.inf, -np.inf],
+    np.nan
+)
+
+df = df.fillna(0)
+
+# ---------------------------------------------------------
 # DATE COLUMN
 # ---------------------------------------------------------
 
@@ -43,6 +84,7 @@ for col in df.columns:
         break
 
 if date_col:
+
     df[date_col] = pd.to_datetime(
         df[date_col],
         errors="coerce"
@@ -56,27 +98,33 @@ st.sidebar.header("🎯 ESG Targets")
 
 target_reduction = st.sidebar.slider(
     "Carbon Reduction Target (%)",
-    min_value=5,
-    max_value=50,
-    value=10
+    5,
+    50,
+    10
 )
 
 target_esg_score = st.sidebar.slider(
     "Target ESG Score",
-    min_value=50,
-    max_value=100,
-    value=85
+    50,
+    100,
+    85
 )
 
 # ---------------------------------------------------------
 # ESG CALCULATIONS
 # ---------------------------------------------------------
 
-total_emissions = df["CO2(tCO2)"].sum()
+total_emissions = float(
+    df["CO2(tCO2)"].sum()
+)
 
-total_energy = df["Usage_kWh"].sum()
+total_energy = float(
+    df["Usage_kWh"].sum()
+)
 
-avg_emissions = df["CO2(tCO2)"].mean()
+avg_emissions = float(
+    df["CO2(tCO2)"].mean()
+)
 
 target_emissions = (
     total_emissions *
@@ -89,13 +137,19 @@ reduction_needed = (
 )
 
 carbon_reduction_pct = (
-    reduction_needed /
-    total_emissions
-) * 100
+    (
+        reduction_needed /
+        total_emissions
+    ) * 100
+    if total_emissions > 0
+    else 0
+)
 
 carbon_intensity = (
     total_emissions /
     total_energy
+    if total_energy > 0
+    else 0
 )
 
 # ---------------------------------------------------------
@@ -133,19 +187,19 @@ esg_score = round(
 # ---------------------------------------------------------
 
 if esg_score >= 80:
+
     status = "Green"
     sustainability_rating = "Excellent"
-    color = "green"
 
 elif esg_score >= 60:
+
     status = "Yellow"
     sustainability_rating = "Moderate"
-    color = "orange"
 
 else:
+
     status = "Red"
     sustainability_rating = "Poor"
-    color = "red"
 
 # ---------------------------------------------------------
 # KPI SECTION
@@ -155,40 +209,35 @@ st.subheader("📊 ESG KPIs")
 
 c1, c2, c3, c4, c5 = st.columns(5)
 
-with c1:
-    st.metric(
-        "Current Emissions",
-        f"{total_emissions:,.2f}"
-    )
+c1.metric(
+    "Current Emissions",
+    f"{total_emissions:,.2f}"
+)
 
-with c2:
-    st.metric(
-        "Target Emissions",
-        f"{target_emissions:,.2f}"
-    )
+c2.metric(
+    "Target Emissions",
+    f"{target_emissions:,.2f}"
+)
 
-with c3:
-    st.metric(
-        "Reduction %",
-        f"{carbon_reduction_pct:.2f}%"
-    )
+c3.metric(
+    "Reduction %",
+    f"{carbon_reduction_pct:.2f}%"
+)
 
-with c4:
-    st.metric(
-        "Carbon Intensity",
-        f"{carbon_intensity:.4f}"
-    )
+c4.metric(
+    "Carbon Intensity",
+    f"{carbon_intensity:.5f}"
+)
 
-with c5:
-    st.metric(
-        "ESG Score",
-        esg_score
-    )
+c5.metric(
+    "ESG Score",
+    esg_score
+)
 
 st.markdown("---")
 
 # ---------------------------------------------------------
-# ESG SCORE GAUGE
+# ESG GAUGE
 # ---------------------------------------------------------
 
 left, right = st.columns([1, 2])
@@ -199,9 +248,7 @@ with left:
         go.Indicator(
             mode="gauge+number",
             value=esg_score,
-            title={
-                "text": "ESG Score"
-            },
+            title={"text": "ESG Score"},
             gauge={
                 "axis": {
                     "range": [0, 100]
@@ -240,19 +287,13 @@ with right:
     )
 
     if status == "Green":
-        st.success(
-            "On Target"
-        )
+        st.success("On Target")
 
     elif status == "Yellow":
-        st.warning(
-            "Warning Zone"
-        )
+        st.warning("Warning Zone")
 
     else:
-        st.error(
-            "Target Exceeded"
-        )
+        st.error("Target Exceeded")
 
     st.metric(
         "Sustainability Rating",
@@ -265,18 +306,24 @@ with right:
     )
 
 # ---------------------------------------------------------
-# EMISSION PROGRESS
+# PROGRESS
 # ---------------------------------------------------------
 
-st.subheader("📈 Sustainability Progress")
+st.subheader(
+    "📈 Sustainability Progress"
+)
 
 progress = (
-    target_emissions /
-    total_emissions
-) * 100
+    (
+        target_emissions /
+        total_emissions
+    ) * 100
+    if total_emissions > 0
+    else 0
+)
 
 st.progress(
-    min(100, int(progress))
+    int(min(progress, 100))
 )
 
 st.write(
@@ -284,22 +331,26 @@ st.write(
 )
 
 # ---------------------------------------------------------
-# MONTHLY ESG TREND
+# MONTHLY TREND (FIXED)
 # ---------------------------------------------------------
 
-if date_col:
+if (
+    date_col is not None
+    and df[date_col].notna().sum() > 0
+):
 
     st.subheader(
         "📅 Monthly ESG Trend"
     )
 
+    monthly_df = df.dropna(
+        subset=[date_col]
+    ).copy()
+
     monthly = (
-        df.groupby(
-            pd.Grouper(
-                key=date_col,
-                freq="M"
-            )
-        )
+        monthly_df
+        .set_index(date_col)
+        .resample("ME")
         .agg({
             "CO2(tCO2)": "sum",
             "Usage_kWh": "sum"
@@ -309,8 +360,13 @@ if date_col:
 
     monthly["Carbon_Intensity"] = (
         monthly["CO2(tCO2)"] /
-        monthly["Usage_kWh"]
+        monthly["Usage_kWh"].replace(
+            0,
+            np.nan
+        )
     )
+
+    monthly = monthly.fillna(0)
 
     fig = px.line(
         monthly,
@@ -326,42 +382,45 @@ if date_col:
     )
 
 # ---------------------------------------------------------
-# LOAD TYPE ESG ANALYSIS
+# LOAD TYPE ANALYSIS
 # ---------------------------------------------------------
 
-st.subheader(
-    "🏭 Load Type ESG Analysis"
-)
+if "Load_Type" in df.columns:
 
-load_summary = (
-    df.groupby("Load_Type")
-    .agg({
-        "CO2(tCO2)": "sum",
-        "Usage_kWh": "sum"
-    })
-    .reset_index()
-)
+    st.subheader(
+        "🏭 Load Type ESG Analysis"
+    )
 
-load_summary["Carbon_Intensity"] = (
-    load_summary["CO2(tCO2)"] /
-    load_summary["Usage_kWh"]
-)
+    load_summary = (
+        df.groupby("Load_Type")
+        .agg({
+            "CO2(tCO2)": "sum",
+            "Usage_kWh": "sum"
+        })
+        .reset_index()
+    )
 
-fig = px.bar(
-    load_summary,
-    x="Load_Type",
-    y="Carbon_Intensity",
-    color="Load_Type",
-    text_auto=True
-)
+    load_summary["Carbon_Intensity"] = (
+        load_summary["CO2(tCO2)"] /
+        load_summary["Usage_kWh"]
+    )
 
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
+    load_summary = load_summary.fillna(0)
+
+    fig = px.bar(
+        load_summary,
+        x="Load_Type",
+        y="Carbon_Intensity",
+        color="Load_Type"
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
 
 # ---------------------------------------------------------
-# ESG SCORE COMPONENTS
+# SCORE COMPONENTS
 # ---------------------------------------------------------
 
 st.subheader(
@@ -396,7 +455,7 @@ st.plotly_chart(
 )
 
 # ---------------------------------------------------------
-# SUSTAINABILITY RECOMMENDATIONS
+# RECOMMENDATIONS
 # ---------------------------------------------------------
 
 st.subheader(
@@ -420,14 +479,22 @@ if esg_score < 80:
         "Increase renewable energy utilization."
     )
 
-if df[
+if (
     "Lagging_Current_Power_Factor"
-].mean() < 80:
-    recommendations.append(
-        "Improve power factor correction systems."
-    )
+    in df.columns
+):
 
-if len(recommendations) == 0:
+    if (
+        df[
+            "Lagging_Current_Power_Factor"
+        ].mean()
+        < 80
+    ):
+        recommendations.append(
+            "Improve power factor correction systems."
+        )
+
+if not recommendations:
     recommendations.append(
         "Current ESG performance is excellent."
     )
@@ -436,7 +503,7 @@ for rec in recommendations:
     st.success(rec)
 
 # ---------------------------------------------------------
-# ESG REPORT TABLE
+# REPORT
 # ---------------------------------------------------------
 
 st.subheader(
@@ -472,7 +539,7 @@ st.dataframe(
 )
 
 # ---------------------------------------------------------
-# DOWNLOAD ESG REPORT
+# DOWNLOAD
 # ---------------------------------------------------------
 
 csv = report.to_csv(
@@ -480,14 +547,14 @@ csv = report.to_csv(
 )
 
 st.download_button(
-    label="⬇ Download ESG Report",
-    data=csv,
-    file_name="esg_report.csv",
-    mime="text/csv"
+    "⬇ Download ESG Report",
+    csv,
+    "esg_report.csv",
+    "text/csv"
 )
 
 # ---------------------------------------------------------
-# AI GENERATED ESG INSIGHTS
+# INSIGHTS
 # ---------------------------------------------------------
 
 st.subheader(
@@ -496,18 +563,16 @@ st.subheader(
 
 st.info(
     f"""
-    Current ESG score is {esg_score}.
+Current ESG Score: {esg_score}
 
-    Sustainability rating is {sustainability_rating}.
+Sustainability Rating: {sustainability_rating}
 
-    Carbon reduction target is {target_reduction}%.
+Carbon Reduction Target: {target_reduction}%
 
-    Estimated reduction required:
-    {reduction_needed:,.2f} tCO₂.
+Reduction Required: {reduction_needed:,.2f} tCO₂
 
-    Carbon intensity currently stands at
-    {carbon_intensity:.5f}.
-    """
+Carbon Intensity: {carbon_intensity:.5f}
+"""
 )
 
 # ---------------------------------------------------------
