@@ -1,168 +1,185 @@
-# pages/1_Executive_Summary.py
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-from utils.preprocessing import preprocess_data
-from utils.feature_engineering import engineer_features
-from utils.emissions import emission_summary
-from utils.esg import calculate_esg
-from utils.insights import generate_insights
-
-# ---------------------------------------------------
+# ==========================================
 # PAGE CONFIG
-# ---------------------------------------------------
+# ==========================================
 
 st.set_page_config(
     page_title="Executive Summary",
-    page_icon="🌍",
+    page_icon="📊",
     layout="wide"
 )
 
-st.title("🌍 Steel Industry Carbon Footprint & ESG Analytics")
-st.markdown("---")
+st.title("📊 Executive Summary")
+st.markdown(
+    "Enterprise ESG & Carbon Intelligence Dashboard"
+)
 
-# ---------------------------------------------------
-# LOAD DATA
-# ---------------------------------------------------
+# ==========================================
+# DATA LOADER
+# ==========================================
 
-if "data" not in st.session_state:
+@st.cache_data
+def load_data():
 
-    uploaded_file = st.file_uploader(
-        "Upload Steel Industry Dataset",
-        type=["csv"]
+    try:
+        return pd.read_csv(
+            "data/Steel_industry_data.csv"
+        )
+
+    except Exception:
+        return None
+
+
+df = load_data()
+
+if df is None:
+    st.error(
+        "Dataset not found.\n\n"
+        "Place Steel_industry_data.csv inside data/ folder."
     )
+    st.stop()
 
-    if uploaded_file is not None:
+# ==========================================
+# DATE PROCESSING
+# ==========================================
 
-        df = pd.read_csv(uploaded_file)
+if "Date" in df.columns:
 
-        df = preprocess_data(df)
-
-        df = engineer_features(df)
-
-        st.session_state["data"] = df
-
-    else:
-        st.info("Upload dataset to continue.")
-        st.stop()
-
-else:
-    df = st.session_state["data"]
-
-# ---------------------------------------------------
-# DATE PARSING
-# ---------------------------------------------------
-
-date_col = None
-
-for col in df.columns:
-
-    if "date" in col.lower():
-        date_col = col
-        break
-
-if date_col:
-
-    df[date_col] = pd.to_datetime(
-        df[date_col],
+    df["Date"] = pd.to_datetime(
+        df["Date"],
         errors="coerce"
     )
 
-# ---------------------------------------------------
+    df = df.sort_values("Date")
+
+# ==========================================
+# BASIC CLEANING
+# ==========================================
+
+df = df.drop_duplicates()
+
+df = df.fillna(
+    df.select_dtypes(include=np.number).median()
+)
+
+# ==========================================
+# FEATURE ENGINEERING
+# ==========================================
+
+df["Carbon_Intensity"] = (
+    df["CO2(tCO2)"]
+    /
+    (df["Usage_kWh"] + 1)
+)
+
+df["Total_Reactive_Power"] = (
+    df["Lagging_Current_Reactive.Power_kVarh"]
+    +
+    df["Leading_Current_Reactive_Power_kVarh"]
+)
+
+# ==========================================
 # KPI CALCULATIONS
-# ---------------------------------------------------
+# ==========================================
 
 total_emissions = df["CO2(tCO2)"].sum()
 
-avg_daily_emissions = (
-    df.groupby(df[date_col].dt.date)["CO2(tCO2)"]
-    .sum()
-    .mean()
-    if date_col
-    else df["CO2(tCO2)"].mean()
+avg_daily_emission = (
+    df.groupby(df["Date"].dt.date)
+      ["CO2(tCO2)"]
+      .sum()
+      .mean()
 )
 
 total_energy = df["Usage_kWh"].sum()
 
-carbon_intensity = (
-    total_emissions /
-    total_energy
-    if total_energy > 0
-    else 0
+avg_carbon_intensity = (
+    df["Carbon_Intensity"].mean()
 )
 
-esg_results = calculate_esg(df)
+# ==========================================
+# ESG SCORE
+# ==========================================
 
-esg_score = esg_results.get(
-    "score",
-    0
+emission_score = max(
+    0,
+    100 - (df["CO2(tCO2)"].mean() * 100)
 )
 
-active_alerts = 0
+efficiency_score = min(
+    100,
+    df["Lagging_Current_Power_Factor"].mean()
+)
 
-if "Alert_Level" in df.columns:
+esg_score = round(
+    (emission_score * 0.6)
+    +
+    (efficiency_score * 0.4),
+    2
+)
 
-    active_alerts = len(
-        df[df["Alert_Level"] == "High"]
-    )
+# ==========================================
+# ALERTS
+# ==========================================
 
-# ---------------------------------------------------
-# KPI SECTION
-# ---------------------------------------------------
+alerts = 0
 
-st.subheader("📈 Executive KPIs")
+usage_threshold = (
+    df["Usage_kWh"].median() * 1.5
+)
 
-c1, c2, c3, c4, c5, c6 = st.columns(6)
+alerts += (
+    df["Usage_kWh"] > usage_threshold
+).sum()
 
-with c1:
+# ==========================================
+# KPI ROW
+# ==========================================
+
+col1, col2, col3, col4, col5 = st.columns(5)
+
+with col1:
     st.metric(
         "Total Emissions",
-        f"{total_emissions:,.2f}"
+        f"{total_emissions:,.2f} tCO₂"
     )
 
-with c2:
+with col2:
     st.metric(
-        "Avg Daily CO₂",
-        f"{avg_daily_emissions:,.2f}"
+        "Avg Daily Emissions",
+        f"{avg_daily_emission:,.2f}"
     )
 
-with c3:
-    st.metric(
-        "Carbon Intensity",
-        f"{carbon_intensity:.4f}"
-    )
-
-with c4:
-    st.metric(
-        "ESG Score",
-        f"{esg_score:.0f}"
-    )
-
-with c5:
-    st.metric(
-        "Active Alerts",
-        active_alerts
-    )
-
-with c6:
+with col3:
     st.metric(
         "Energy Usage",
-        f"{total_energy:,.0f}"
+        f"{total_energy:,.0f} kWh"
     )
 
-st.markdown("---")
+with col4:
+    st.metric(
+        "Carbon Intensity",
+        f"{avg_carbon_intensity:.4f}"
+    )
 
-# ---------------------------------------------------
+with col5:
+    st.metric(
+        "ESG Score",
+        f"{esg_score:.0f}/100"
+    )
+
+# ==========================================
 # ESG GAUGE
-# ---------------------------------------------------
+# ==========================================
 
-left, right = st.columns([1, 2])
+col1, col2 = st.columns([1, 2])
 
-with left:
+with col1:
 
     fig = go.Figure(
         go.Indicator(
@@ -171,12 +188,16 @@ with left:
             title={"text": "ESG Score"},
             gauge={
                 "axis": {"range": [0, 100]},
+                "bar": {"thickness": 0.3},
                 "steps": [
-                    {"range": [0, 60], "color": "red"},
-                    {"range": [60, 80], "color": "yellow"},
-                    {"range": [80, 100], "color": "green"}
-                ]
-            }
+                    {"range": [0, 40]},
+                    {"color": "red"},
+                    {"range": [40, 70]},
+                    {"color": "orange"},
+                    {"range": [70, 100]},
+                    {"color": "green"},
+                ],
+            },
         )
     )
 
@@ -186,103 +207,104 @@ with left:
         fig,
         use_container_width=True
     )
-# ---------------------------------------------------
-# MONTHLY EMISSIONS
-# ---------------------------------------------------
 
-with right:
+# ==========================================
+# EMISSION TREND
+# ==========================================
 
-    st.subheader("📉 Monthly Carbon Emissions")
+with col2:
 
-    if date_col:
-
-        monthly = (
-            df
-            .set_index(date_col)
-            .resample("ME")
-            ["CO2(tCO2)"]
-            .sum()
-            .reset_index()
-        )
-
-        fig = px.line(
-            monthly,
-            x=date_col,
-            y="CO2(tCO2)",
-            markers=True,
-            title="Monthly Carbon Trend"
-        )
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
-# ---------------------------------------------------
-# LOAD TYPE ANALYSIS
-# ---------------------------------------------------
-
-st.subheader("⚙️ Emission Contribution by Load Type")
-
-load_emission = (
-    df.groupby("Load_Type")
-    ["CO2(tCO2)"]
-    .sum()
-    .reset_index()
-)
-
-fig = px.pie(
-    load_emission,
-    names="Load_Type",
-    values="CO2(tCO2)",
-    hole=0.5
-)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# ---------------------------------------------------
-# WEEKLY ENERGY CONSUMPTION
-# ---------------------------------------------------
-
-st.subheader("⚡ Weekly Energy Consumption")
-
-if date_col:
-
-    weekly = (
-        df
-        .set_index(date_col)
-        .resample("W")
-        ["Usage_kWh"]
+    daily = (
+        df.groupby(df["Date"].dt.date)
+        ["CO2(tCO2)"]
         .sum()
         .reset_index()
     )
 
-    fig = px.area(
-        weekly,
-        x=date_col,
-        y="Usage_kWh",
-        title="Weekly Energy Usage"
+    fig = px.line(
+        daily,
+        x="Date",
+        y="CO2(tCO2)",
+        title="Carbon Emission Trend"
     )
 
     st.plotly_chart(
         fig,
         use_container_width=True
     )
-# ---------------------------------------------------
-# ENERGY VS EMISSIONS
-# ---------------------------------------------------
 
-st.subheader("🔍 Energy Usage vs Carbon Emissions")
+# ==========================================
+# LOAD TYPE ANALYSIS
+# ==========================================
 
-fig = px.scatter(
-    df,
-    x="Usage_kWh",
+col1, col2 = st.columns(2)
+
+with col1:
+
+    load_summary = (
+        df.groupby("Load_Type")
+        ["CO2(tCO2)"]
+        .sum()
+        .reset_index()
+    )
+
+    fig = px.pie(
+        load_summary,
+        values="CO2(tCO2)",
+        names="Load_Type",
+        title="Emission Contribution by Load Type"
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+with col2:
+
+    usage_summary = (
+        df.groupby("Load_Type")
+        ["Usage_kWh"]
+        .mean()
+        .reset_index()
+    )
+
+    fig = px.bar(
+        usage_summary,
+        x="Load_Type",
+        y="Usage_kWh",
+        title="Average Energy Usage"
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# ==========================================
+# MONTHLY ANALYSIS
+# ==========================================
+
+st.subheader("Monthly Carbon Analysis")
+
+monthly = (
+    df.groupby(
+        df["Date"].dt.to_period("M")
+    )["CO2(tCO2)"]
+    .sum()
+    .reset_index()
+)
+
+monthly["Date"] = (
+    monthly["Date"]
+    .astype(str)
+)
+
+fig = px.bar(
+    monthly,
+    x="Date",
     y="CO2(tCO2)",
-    color="Load_Type",
-    size="Usage_kWh",
-    opacity=0.7
+    title="Monthly Emissions"
 )
 
 st.plotly_chart(
@@ -290,78 +312,99 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# ---------------------------------------------------
-# LOAD TYPE SUMMARY
-# ---------------------------------------------------
+# ==========================================
+# ALERT CENTER
+# ==========================================
 
-st.subheader("🏭 Load Type Summary")
+st.subheader("Active Alerts")
 
-load_summary = (
-    df.groupby("Load_Type")
-    .agg(
-        Energy=("Usage_kWh", "sum"),
-        Emissions=("CO2(tCO2)", "sum"),
-        Avg_Emission=("CO2(tCO2)", "mean")
-    )
-    .reset_index()
-)
+alert_df = df[
+    df["Usage_kWh"]
+    >
+    usage_threshold
+]
 
-st.dataframe(
-    load_summary,
-    use_container_width=True
-)
+if len(alert_df) > 0:
 
-# ---------------------------------------------------
-# TOP EMISSION DAYS
-# ---------------------------------------------------
-
-if date_col:
-
-    st.subheader("🚨 Highest Emission Days")
-
-    top_days = (
-        df.groupby(df[date_col].dt.date)
-        ["CO2(tCO2)"]
-        .sum()
-        .sort_values(ascending=False)
-        .head(10)
-        .reset_index()
+    st.warning(
+        f"{len(alert_df)} high-energy records detected"
     )
 
     st.dataframe(
-        top_days,
+        alert_df[
+            [
+                "Date",
+                "Usage_kWh",
+                "CO2(tCO2)",
+                "Load_Type"
+            ]
+        ].head(20),
         use_container_width=True
     )
 
-# ---------------------------------------------------
-# AI INSIGHTS
-# ---------------------------------------------------
+else:
 
-st.subheader("🤖 Sustainability Insights")
+    st.success(
+        "No active energy consumption alerts."
+    )
 
-insights = generate_insights(df)
+# ==========================================
+# EXECUTIVE INSIGHTS
+# ==========================================
 
-for insight in insights:
+st.subheader("AI Executive Insights")
 
-    st.success(insight)
+top_load = (
+    load_summary
+    .sort_values(
+        "CO2(tCO2)",
+        ascending=False
+    )
+    .iloc[0]
+)
 
-# ---------------------------------------------------
-# DATA PREVIEW
-# ---------------------------------------------------
+peak_day = (
+    df.groupby("Day_of_week")
+    ["Usage_kWh"]
+    .mean()
+    .idxmax()
+)
 
-with st.expander("View Dataset Preview"):
+st.info(
+    f"""
+• {top_load['Load_Type']} contributed the highest emissions.
+
+• Total facility emissions reached {total_emissions:,.2f} tCO₂.
+
+• Average carbon intensity is {avg_carbon_intensity:.4f}.
+
+• Peak energy usage occurs on {peak_day}.
+
+• ESG score currently stands at {esg_score}/100.
+
+• {alerts} potential high-energy alerts detected.
+"""
+)
+
+# ==========================================
+# DATA SNAPSHOT
+# ==========================================
+
+with st.expander(
+    "Dataset Snapshot"
+):
 
     st.dataframe(
-        df.head(20),
+        df.head(),
         use_container_width=True
     )
 
-# ---------------------------------------------------
+# ==========================================
 # FOOTER
-# ---------------------------------------------------
+# ==========================================
 
 st.markdown("---")
 
 st.caption(
-    "Steel Industry Carbon Footprint & ESG Analytics Platform | Executive Dashboard"
+    "Steel Industry Carbon Footprint & ESG Analytics Platform v2.0"
 )
