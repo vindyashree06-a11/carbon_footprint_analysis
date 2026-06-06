@@ -79,30 +79,38 @@ if "Date" in df.columns:
     exclude_cols.append("Date")
 
 features = [
-    c for c in df.columns
-    if c not in exclude_cols
+    col
+    for col in df.columns
+    if col not in exclude_cols
 ]
 
 X = df[features].copy()
 
-# Handle categorical columns
+# Convert booleans
 
-cat_cols = X.select_dtypes(
+for col in X.select_dtypes(include=["bool"]).columns:
+    X[col] = X[col].astype(int)
+
+# Convert categoricals safely
+
+categorical_cols = X.select_dtypes(
     include=["object", "string", "category"]
-).columns
+).columns.tolist()
 
-for col in cat_cols:
+if len(categorical_cols) > 0:
 
-    X[col] = (
-        X[col]
-        .astype(str)
-        .fillna("Unknown")
+    X = pd.get_dummies(
+        X,
+        columns=categorical_cols,
+        drop_first=True,
+        dtype=int
     )
 
-X = pd.get_dummies(
-    X,
-    columns=cat_cols,
-    drop_first=True
+# Convert everything to numeric
+
+X = X.apply(
+    pd.to_numeric,
+    errors="coerce"
 )
 
 X = X.replace(
@@ -112,7 +120,10 @@ X = X.replace(
 
 X = X.fillna(0)
 
-y = df[TARGET]
+y = pd.to_numeric(
+    df[TARGET],
+    errors="coerce"
+).fillna(0)
 
 # ---------------------------------------------------
 # TRAIN TEST SPLIT
@@ -194,15 +205,21 @@ if st.button("🚀 Train Models"):
                 preds
             )
 
-            cv_score = np.mean(
-                cross_val_score(
-                    pipeline,
-                    X,
-                    y,
-                    cv=5,
-                    scoring="r2"
+            try:
+
+                cv_score = np.mean(
+                    cross_val_score(
+                        pipeline,
+                        X,
+                        y,
+                        cv=min(5, len(X)),
+                        scoring="r2"
+                    )
                 )
-            )
+            
+            except Exception:
+
+                cv_score = 0
 
             results.append([
                 name,
@@ -276,36 +293,36 @@ if st.button("🚀 Train Models"):
 # LOAD MODEL
 # ---------------------------------------------------
 
+model = None
+
 if "best_model" in st.session_state:
 
-    model = st.session_state[
-        "best_model"
-    ]
+    model = st.session_state["best_model"]
 
 else:
 
-    if os.path.exists(
-        "models/carbon_model.pkl"
-    ):
+    model_file = "models/carbon_model.pkl"
+
+    if os.path.exists(model_file):
 
         try:
 
             model = joblib.load(
-                "models/carbon_model.pkl"
+                model_file
             )
 
         except Exception:
 
-            st.error(
+            st.warning(
                 """
-                Saved model is incompatible
-                with current Python/sklearn
-                version.
+                Saved model is incompatible with
+                current Python/sklearn version.
 
                 Delete:
+
                 models/carbon_model.pkl
 
-                Then retrain.
+                Then click Train Models again.
                 """
             )
 
@@ -314,64 +331,10 @@ else:
     else:
 
         st.info(
-            "Train a model first."
+            "No trained model found. Click Train Models."
         )
 
         st.stop()
-
-# ---------------------------------------------------
-# FEATURE IMPORTANCE
-# ---------------------------------------------------
-
-st.markdown("---")
-st.subheader(
-    "📈 Feature Importance"
-)
-
-try:
-
-    reg = model.named_steps[
-        "model"
-    ]
-
-    if hasattr(
-        reg,
-        "feature_importances_"
-    ):
-
-        importance = pd.DataFrame({
-
-            "Feature":
-                X.columns,
-
-            "Importance":
-                reg.feature_importances_
-
-        })
-
-        importance = importance.sort_values(
-            "Importance",
-            ascending=False
-        )
-
-        fig = px.bar(
-            importance.head(15),
-            x="Importance",
-            y="Feature",
-            orientation="h",
-            title="Top 15 Features"
-        )
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
-
-except Exception:
-
-    st.info(
-        "Feature importance unavailable."
-    )
 
 # ---------------------------------------------------
 # PREDICTION
