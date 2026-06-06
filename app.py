@@ -135,13 +135,13 @@ def initialize_database():
 
     except Exception as e:
 
-    st.error(f"MongoDB Connection Failed: {e}")
+        st.error(f"MongoDB Connection Failed: {e}")
 
-    logger.error(f"MongoDB Error: {e}")
+        logger.error(f"MongoDB Error: {e}")
 
-    st.session_state.mongo_connected = False
+        st.session_state.mongo_connected = False
 
-    return None
+        return None
 
 mongo = initialize_database()
 
