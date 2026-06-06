@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 
 import streamlit as st
+import pandas as pd
 from dotenv import load_dotenv
 
 from utils.mongodb import MongoDBManager
@@ -40,53 +41,40 @@ logger = logging.getLogger(__name__)
 # CUSTOM CSS
 # =====================================================
 
-st.markdown(
-    """
-    <style>
+st.markdown("""
+<style>
 
-    .main {
-        padding-top: 1rem;
-    }
+.main {
+    padding-top: 1rem;
+}
 
-    .metric-card {
-        background-color:#111827;
-        padding:20px;
-        border-radius:15px;
-        border:1px solid #374151;
-    }
+.title {
+    font-size:40px;
+    font-weight:bold;
+    color:#00d4ff;
+}
 
-    .title {
-        font-size:40px;
-        font-weight:bold;
-        color:#00d4ff;
-    }
+.sub-title {
+    font-size:18px;
+    color:#9CA3AF;
+}
 
-    .sub-title {
-        font-size:18px;
-        color:#9CA3AF;
-    }
+footer {
+    visibility:hidden;
+}
 
-    footer {
-        visibility:hidden;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+</style>
+""", unsafe_allow_html=True)
 
 # =====================================================
 # SESSION STATE
 # =====================================================
 
-if "data_loaded" not in st.session_state:
-    st.session_state.data_loaded = False
-
 if "dataset" not in st.session_state:
     st.session_state.dataset = None
 
-if "model_trained" not in st.session_state:
-    st.session_state.model_trained = False
+if "data_loaded" not in st.session_state:
+    st.session_state.data_loaded = False
 
 if "mongo_connected" not in st.session_state:
     st.session_state.mongo_connected = False
@@ -97,29 +85,28 @@ if "mongo_connected" not in st.session_state:
 
 with st.sidebar:
 
-    st.image(
-        "assets/logo.png",
-        width="stretch"
-    )
+    if os.path.exists("assets/logo.png"):
+        st.image(
+            "assets/logo.png",
+            use_container_width=True
+        )
 
     st.markdown("## ESG Intelligence Platform")
 
     st.divider()
 
-    st.write(
-        f"""
-        **Version:** 2.0 Enterprise
+    st.write("""
+    **Version:** 2.0 Enterprise
 
-        **Modules:**
-        - Carbon Analytics
-        - ESG Compliance
-        - Forecasting
-        - AutoML
-        - Digital Twin
-        - Monte Carlo
-        - Future Scenario Lab
-        """
-    )
+    **Modules**
+    - Carbon Analytics
+    - ESG Compliance
+    - Forecasting
+    - AutoML
+    - Digital Twin
+    - Monte Carlo
+    - Future Scenario Lab
+    """)
 
     st.divider()
 
@@ -128,7 +115,7 @@ with st.sidebar:
     )
 
 # =====================================================
-# MONGODB CONNECTION
+# DATABASE
 # =====================================================
 
 @st.cache_resource
@@ -138,12 +125,11 @@ def initialize_database():
 
         mongo = MongoDBManager()
 
-        # Verify actual Atlas connection
         mongo.client.admin.command("ping")
 
         st.session_state.mongo_connected = True
 
-        logger.info("MongoDB Connected Successfully")
+        logger.info("MongoDB Connected")
 
         return mongo
 
@@ -155,7 +141,6 @@ def initialize_database():
 
         return None
 
-
 mongo = initialize_database()
 
 # =====================================================
@@ -165,8 +150,7 @@ mongo = initialize_database()
 st.markdown(
     """
     <div class="title">
-    🏭 Steel Industry Carbon Footprint &
-    ESG Analytics Platform
+    🏭 Steel Industry Carbon Footprint & ESG Analytics Platform
     </div>
     """,
     unsafe_allow_html=True
@@ -185,49 +169,39 @@ st.markdown(
 st.divider()
 
 # =====================================================
-# SYSTEM STATUS
+# STATUS CARDS
 # =====================================================
 
-col1, col2, col3, col4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
-with col1:
-
+with c1:
     st.metric(
         "MongoDB",
-        "Connected"
-        if st.session_state.mongo_connected
-        else "Offline"
+        "Connected" if st.session_state.mongo_connected else "Offline"
     )
 
-with col2:
-
-   st.metric(
-    "Dataset",
-    "Loaded"
-    if st.session_state.dataset is not None
-    else "Not Loaded"
-   )
-
-with col3:
-
- st.metric(
-    "Model",
-    "Ready"
-    if os.path.exists(
-        "models/best_carbon_model.pkl"
+with c2:
+    st.metric(
+        "Dataset",
+        "Loaded" if st.session_state.dataset is not None else "Not Loaded"
     )
-    else "Not Trained"
-)
 
-with col4:
+with c3:
+    st.metric(
+        "Model",
+        "Ready"
+        if os.path.exists("models/best_carbon_model.pkl")
+        else "Not Trained"
+    )
 
+with c4:
     st.metric(
         "Platform",
         "Enterprise"
     )
 
 # =====================================================
-# DATA UPLOAD
+# FILE UPLOAD
 # =====================================================
 
 st.subheader("📂 Upload Steel Industry Dataset")
@@ -237,43 +211,38 @@ uploaded_file = st.file_uploader(
     type=["csv"]
 )
 
-if uploaded_file:
+if uploaded_file is not None:
 
     try:
-
-        import pandas as pd
 
         df = pd.read_csv(uploaded_file)
 
         st.session_state.dataset = df
-
         st.session_state.data_loaded = True
 
         st.success(
-            f"Dataset Loaded Successfully ({df.shape[0]} rows)"
+            f"Dataset Loaded Successfully ({len(df)} rows)"
         )
 
-       if mongo and hasattr(
-    mongo,
-    "insert_dataset_log"
-):
+        if mongo:
 
-    try:
+            try:
 
-        mongo.insert_dataset_log(
-            {
-                "filename": uploaded_file.name,
-                "rows": int(df.shape[0]),
-                "columns": int(df.shape[1]),
-                "upload_time": datetime.utcnow()
-            }
-        )
+                mongo.insert_dataset_log(
+                    {
+                        "filename": uploaded_file.name,
+                        "rows": int(df.shape[0]),
+                        "columns": int(df.shape[1]),
+                        "upload_time": datetime.utcnow()
+                    }
+                )
 
-    except Exception as e:
+            except Exception as mongo_error:
 
-        logger.error(
-            f"Dataset Log Error: {e}"
-        )
+                logger.error(
+                    f"MongoDB Logging Error: {mongo_error}"
+                )
+
         logger.info(
             f"Dataset Uploaded: {uploaded_file.name}"
         )
@@ -288,36 +257,28 @@ if uploaded_file:
 # DATA PREVIEW
 # =====================================================
 
-if st.session_state.data_loaded:
+if st.session_state.dataset is not None:
 
     st.subheader("Dataset Preview")
 
     st.dataframe(
         st.session_state.dataset.head(),
-       width="stretch"
+        use_container_width=True
     )
 
     rows = st.session_state.dataset.shape[0]
     cols = st.session_state.dataset.shape[1]
 
-    col1, col2 = st.columns(2)
+    a, b = st.columns(2)
 
-    with col1:
+    with a:
+        st.metric("Rows", rows)
 
-        st.metric(
-            "Rows",
-            rows
-        )
-
-    with col2:
-
-        st.metric(
-            "Columns",
-            cols
-        )
+    with b:
+        st.metric("Columns", cols)
 
 # =====================================================
-# PLATFORM FEATURES
+# PLATFORM MODULES
 # =====================================================
 
 st.divider()
@@ -328,131 +289,82 @@ c1, c2, c3 = st.columns(3)
 
 with c1:
 
-    st.info(
-        """
-        ### Carbon Analytics
+    st.info("""
+### Carbon Analytics
 
-        • Emission Tracking
+• Emission Tracking
 
-        • Carbon Intensity
+• Carbon Intensity
 
-        • Load Type Analysis
+• Load Analysis
 
-        • Trend Monitoring
-        """
-    )
+• Trend Monitoring
+""")
 
 with c2:
 
-    st.info(
-        """
-        ### Forecasting Engine
+    st.info("""
+### Forecasting Engine
 
-        • Prophet
+• Prophet
 
-        • SARIMA
+• SARIMA
 
-        • XGBoost
+• XGBoost
 
-        • LightGBM
+• LightGBM
 
-        • AutoML
-        """
-    )
+• AutoML
+""")
 
 with c3:
 
-    st.info(
-        """
-        ### ESG Intelligence
+    st.info("""
+### ESG Intelligence
 
-        • ESG Score
+• ESG Score
 
-        • Compliance Engine
+• Compliance Engine
 
-        • Sustainability Rating
+• Sustainability Rating
 
-        • Recommendations
-        """
-    )
+• Recommendations
+""")
 
 # =====================================================
-# NEW ENTERPRISE MODULES
+# ENTERPRISE MODULES
 # =====================================================
 
 st.subheader("🧠 Enterprise AI Modules")
 
-col1, col2, col3 = st.columns(3)
+e1, e2, e3 = st.columns(3)
 
-with col1:
+with e1:
+    st.success("""
+Future Scenario Lab
 
-    st.success(
-        """
-        Future Scenario Lab
+Digital Twin
 
-        Digital Twin
+What-If Analysis
+""")
 
-        What-If Analysis
-        """
-    )
+with e2:
+    st.success("""
+Monte Carlo Simulation
 
-with col2:
+Risk Assessment
 
-    st.success(
-        """
-        Monte Carlo Simulation
+Carbon Budget Tracking
+""")
 
-        Risk Assessment
+with e3:
+    st.success("""
+AutoML Engine
 
-        Carbon Budget Tracking
-        """
-    )
+Model Comparison
 
-with col3:
-
-    st.success(
-        """
-        AutoML Engine
-
-        Model Comparison
-
-        Forecast Intelligence
-        """
-    )
-
-# =====================================================
-# NAVIGATION GUIDE
-# =====================================================
-
-st.divider()
-
-st.subheader("📊 Dashboard Navigation")
-
-st.markdown(
-    """
-### Available Pages
-
-1. Executive Summary
-
-2. Carbon Analytics
-
-3. Prediction Center
-
-4. ESG Dashboard
-
-5. Load Analysis
-
-6. Anomaly Detection Center
-
-7. Sustainability Insights
-
-8. Future Scenario Lab
-
-9. Model Comparison Center
-
-Use the left sidebar to navigate between pages.
-"""
-)
+Forecast Intelligence
+""")
 
 # =====================================================
 # FOOTER
@@ -460,16 +372,13 @@ Use the left sidebar to navigate between pages.
 
 st.divider()
 
-st.caption(
-    """
-Steel Industry Carbon Footprint &
-ESG Analytics Platform v2.0 Enterprise
+st.caption("""
+Steel Industry Carbon Footprint & ESG Analytics Platform v2.0 Enterprise
 
 Built with:
 
 Streamlit • Scikit-Learn • XGBoost • LightGBM
 • CatBoost • Prophet • MongoDB Atlas • Plotly
-"""
-)
+""")
 
 logger.info("Application Loaded Successfully")
