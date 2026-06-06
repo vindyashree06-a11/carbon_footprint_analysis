@@ -1,3 +1,4 @@
+```python
 import os
 import joblib
 import streamlit as st
@@ -19,6 +20,10 @@ from sklearn.ensemble import (
     GradientBoostingRegressor
 )
 
+# =====================================================
+# PAGE CONFIG
+# =====================================================
+
 st.set_page_config(
     page_title="Prediction Center",
     page_icon="🤖",
@@ -31,25 +36,23 @@ st.title("🤖 Carbon Emission Prediction Center")
 # LOAD DATA
 # =====================================================
 
-if (
-    "dataset" in st.session_state
-    and st.session_state.dataset is not None
-):
-    df = st.session_state.dataset.copy()
+try:
 
-else:
-    try:
+    if (
+        "dataset" in st.session_state
+        and st.session_state.dataset is not None
+    ):
+        df = st.session_state.dataset.copy()
+
+    else:
         df = pd.read_csv(
             "data/Steel_industry_data.csv"
         )
 
-    except Exception as e:
+except Exception as e:
 
-        st.error(
-            f"Dataset Error: {e}"
-        )
-
-        st.stop()
+    st.error(f"Dataset Error: {e}")
+    st.stop()
 
 # =====================================================
 # VALIDATE DATASET
@@ -66,8 +69,7 @@ required_columns = [
 ]
 
 missing = [
-    col
-    for col in required_columns
+    col for col in required_columns
     if col not in df.columns
 ]
 
@@ -109,130 +111,148 @@ X = df[features]
 y = df[target]
 
 # =====================================================
-# MODEL
+# DEBUG SECTION
 # =====================================================
 
-MODEL_PATH = "models/best_carbon_model.pkl"
+st.subheader("Dataset Debug")
+
+st.write("CO2 Statistics")
+st.write(df["CO2(tCO2)"].describe())
+
+st.write(
+    "Unique CO2 Values:",
+    df["CO2(tCO2)"].nunique()
+)
+
+st.write(
+    df["CO2(tCO2)"].head(20)
+)
+
+# =====================================================
+# TRAIN MODEL EVERY RUN
+# =====================================================
+
+st.info(
+    "Training model from current dataset..."
+)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42
+)
+
+models = {
+    "Linear Regression":
+        LinearRegression(),
+
+    "Random Forest":
+        RandomForestRegressor(
+            n_estimators=200,
+            random_state=42
+        ),
+
+    "Gradient Boosting":
+        GradientBoostingRegressor(
+            random_state=42
+        )
+}
 
 best_model = None
+best_r2 = -999
+best_name = ""
 
-if os.path.exists(MODEL_PATH):
+results = []
 
-    try:
+for name, model in models.items():
 
-        best_model = joblib.load(
-            MODEL_PATH
+    pipe = Pipeline([
+        (
+            "scaler",
+            StandardScaler()
+        ),
+        (
+            "model",
+            model
         )
+    ])
 
-        st.success(
-            "Loaded Existing Trained Model"
-        )
-
-    except:
-
-        best_model = None
-
-# =====================================================
-# TRAIN MODEL
-# =====================================================
-
-if best_model is None:
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.2,
-        random_state=42
+    pipe.fit(
+        X_train,
+        y_train
     )
 
-    models = {
-        "Linear Regression":
-            LinearRegression(),
+    preds = pipe.predict(
+        X_test
+    )
 
-        "Random Forest":
-            RandomForestRegressor(
-                n_estimators=200,
-                random_state=42
-            ),
+    r2 = r2_score(
+        y_test,
+        preds
+    )
 
-        "Gradient Boosting":
-            GradientBoostingRegressor(
-                random_state=42
-            )
-    }
+    mae = mean_absolute_error(
+        y_test,
+        preds
+    )
 
-    best_r2 = -999
-    best_name = ""
-
-    results = []
-
-    for name, model in models.items():
-
-        pipe = Pipeline([
-            (
-                "scaler",
-                StandardScaler()
-            ),
-            (
-                "model",
-                model
-            )
-        ])
-
-        pipe.fit(
-            X_train,
-            y_train
-        )
-
-        preds = pipe.predict(
-            X_test
-        )
-
-        r2 = r2_score(
+    rmse = np.sqrt(
+        mean_squared_error(
             y_test,
             preds
         )
-
-        mae = mean_absolute_error(
-            y_test,
-            preds
-        )
-
-        rmse = np.sqrt(
-            mean_squared_error(
-                y_test,
-                preds
-            )
-        )
-
-        results.append(
-            [
-                name,
-                r2,
-                mae,
-                rmse
-            ]
-        )
-
-        if r2 > best_r2:
-
-            best_r2 = r2
-            best_model = pipe
-            best_name = name
-
-    os.makedirs(
-        "models",
-        exist_ok=True
     )
 
-    joblib.dump(
-        best_model,
-        MODEL_PATH
+    results.append(
+        [
+            name,
+            r2,
+            mae,
+            rmse
+        ]
     )
 
-    st.success(
-        f"Best Model Saved: {best_name}"
-    )
+    if r2 > best_r2:
+
+        best_r2 = r2
+        best_model = pipe
+        best_name = name
+
+results_df = pd.DataFrame(
+    results,
+    columns=[
+        "Model",
+        "R²",
+        "MAE",
+        "RMSE"
+    ]
+)
+
+st.subheader("Model Comparison")
+
+st.dataframe(
+    results_df,
+    width="stretch"
+)
+
+st.success(
+    f"Best Model: {best_name} | R² = {best_r2:.4f}"
+)
+
+# =====================================================
+# SAVE MODEL
+# =====================================================
+
+os.makedirs(
+    "models",
+    exist_ok=True
+)
+
+joblib.dump(
+    best_model,
+    "models/best_carbon_model.pkl"
+)
 
 # =====================================================
 # INPUTS
@@ -320,14 +340,29 @@ if st.button(
         best_model.predict(sample)[0]
     )
 
-    prediction = max(
-        prediction,
-        0
+    st.write(
+        "Raw Prediction Value:",
+        repr(prediction)
     )
 
     st.write(
-        "Raw Prediction:",
-        prediction
+        "Target Min:",
+        y.min()
+    )
+
+    st.write(
+        "Target Max:",
+        y.max()
+    )
+
+    st.write(
+        "Target Mean:",
+        y.mean()
+    )
+
+    prediction = max(
+        prediction,
+        0
     )
 
     st.metric(
@@ -347,3 +382,4 @@ Next Month Forecast:
 {prediction*30:.8f} tCO₂
 """
     )
+```
