@@ -1,429 +1,106 @@
-# pages/2_Carbon_Analytics.py
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-from utils.emissions import emission_summary
+st.set_page_config(page_title="Carbon Analytics", page_icon="🌍", layout="wide")
 
-# --------------------------------------------------
-# PAGE CONFIG
-# --------------------------------------------------
+st.title("🌍 Carbon Analytics")
+st.caption("Steel Industry Carbon Footprint Analytics")
 
-st.set_page_config(
-    page_title="Carbon Analytics",
-    page_icon="🌿",
-    layout="wide"
-)
+@st.cache_data
+def load_data():
+    return pd.read_csv("data/Steel_industry_data.csv")
 
-st.title("🌿 Carbon Footprint Analytics")
-st.markdown("---")
-
-# --------------------------------------------------
-# LOAD DATA
-# --------------------------------------------------
-
-if "data" not in st.session_state:
-    st.warning("Please upload dataset from Executive Summary page.")
+try:
+    df = load_data()
+except Exception as e:
+    st.error(f"Dataset load error: {e}")
     st.stop()
 
-df = st.session_state["data"].copy()
+df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+df = df.dropna(subset=["Date"]).drop_duplicates()
 
-# --------------------------------------------------
-# DATE HANDLING
-# --------------------------------------------------
+numeric_cols = df.select_dtypes(include=np.number).columns
+df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].median())
 
-date_col = None
+df["Carbon_Intensity"] = df["CO2(tCO2)"] / (df["Usage_kWh"] + 1)
 
-for col in df.columns:
-    if "date" in col.lower():
-        date_col = col
-        break
+st.sidebar.header("Filters")
+start_date = st.sidebar.date_input("Start Date", df["Date"].min().date())
+end_date = st.sidebar.date_input("End Date", df["Date"].max().date())
 
-if date_col:
-    df[date_col] = pd.to_datetime(
-        df[date_col],
-        errors="coerce"
-    )
+filtered = df[
+    (df["Date"].dt.date >= start_date) &
+    (df["Date"].dt.date <= end_date)
+].copy()
 
-# --------------------------------------------------
-# EMISSION SUMMARY
-# --------------------------------------------------
+total_emissions = filtered["CO2(tCO2)"].sum()
+avg_daily = filtered.groupby(filtered["Date"].dt.date)["CO2(tCO2)"].sum().mean()
+annualized = avg_daily * 365 if pd.notna(avg_daily) else 0
+carbon_intensity = filtered["Carbon_Intensity"].mean()
 
-summary = emission_summary(df)
+c1,c2,c3,c4 = st.columns(4)
+c1.metric("Total Emissions", f"{total_emissions:,.2f} tCO₂")
+c2.metric("Avg Daily", f"{avg_daily:,.2f}")
+c3.metric("Annualized", f"{annualized:,.2f}")
+c4.metric("Carbon Intensity", f"{carbon_intensity:.4f}")
 
-total_emissions = summary["total_emission"]
-avg_emissions = summary["average_emission"]
-annualized = summary["annualized_emission"]
+st.subheader("Emission Trend")
 
-daily_emissions = (
-    df.groupby(df[date_col].dt.date)["CO2(tCO2)"]
-    .sum()
-    .reset_index()
-)
+daily = filtered.groupby(filtered["Date"].dt.date)["CO2(tCO2)"].sum().reset_index()
+daily["7DMA"] = daily["CO2(tCO2)"].rolling(7, min_periods=1).mean()
 
-monthly_emissions = (
-    df
-    .set_index(date_col)
-    .resample("ME")
-    ["CO2(tCO2)"]
-    .sum()
-    .reset_index()
-)
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=daily["Date"], y=daily["CO2(tCO2)"], name="Daily"))
+fig.add_trace(go.Scatter(x=daily["Date"], y=daily["7DMA"], name="7DMA"))
+st.plotly_chart(fig, use_container_width=True)
 
-weekly_emissions = (
-    df.groupby(
-        pd.Grouper(
-            key=date_col,
-            freq="W"
-        )
-    )["CO2(tCO2)"]
-    .sum()
-    .reset_index()
-)
-
-# --------------------------------------------------
-# KPI SECTION
-# --------------------------------------------------
-
-st.subheader("📊 Carbon KPIs")
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    st.metric(
-        "Total CO₂",
-        f"{total_emissions:,.2f}"
-    )
-
-with c2:
-    st.metric(
-        "Average CO₂",
-        f"{avg_emissions:.4f}"
-    )
-
-with c3:
-    st.metric(
-        "Annualized CO₂",
-        f"{annualized:,.2f}"
-    )
-
-with c4:
-
-    carbon_intensity = (
-        df["CO2(tCO2)"].sum()
-        /
-        df["Usage_kWh"].sum()
-    )
-
-    st.metric(
-        "Carbon Intensity",
-        f"{carbon_intensity:.4f}"
-    )
-
-st.markdown("---")
-
-# --------------------------------------------------
-# DAILY EMISSIONS
-# --------------------------------------------------
-
-st.subheader("📈 Daily Carbon Emissions")
-
-fig = px.line(
-    daily_emissions,
-    x=date_col,
-    y="CO2(tCO2)",
-    markers=True
-)
-
-fig.update_layout(height=500)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# --------------------------------------------------
-# WEEKLY EMISSIONS
-# --------------------------------------------------
-
-st.subheader("📅 Weekly Emission Analysis")
-
-fig = px.area(
-    weekly_emissions,
-    x=date_col,
-    y="CO2(tCO2)"
-)
-
-fig.update_layout(height=500)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# --------------------------------------------------
-# MONTHLY EMISSIONS
-# --------------------------------------------------
-
-st.subheader("🗓 Monthly Carbon Trend")
-
-fig = px.bar(
-    monthly_emissions,
-    x=date_col,
-    y="CO2(tCO2)",
-    text_auto=True
-)
-
-fig.update_layout(height=500)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# --------------------------------------------------
-# EMISSION DISTRIBUTION
-# --------------------------------------------------
-
-st.subheader("📉 Emission Distribution")
-
-fig = px.histogram(
-    df,
-    x="CO2(tCO2)",
-    nbins=50
-)
-
-fig.update_layout(height=500)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# --------------------------------------------------
-# LOAD TYPE CONTRIBUTION
-# --------------------------------------------------
-
-st.subheader("🏭 Emission Contribution By Load Type")
-
-load_emissions = (
-    df.groupby("Load_Type")
-    ["CO2(tCO2)"]
-    .sum()
-    .reset_index()
-)
-
-fig = px.pie(
-    load_emissions,
-    names="Load_Type",
-    values="CO2(tCO2)",
-    hole=0.5
-)
-
-fig.update_layout(height=550)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# --------------------------------------------------
-# LOAD TYPE COMPARISON
-# --------------------------------------------------
-
-st.subheader("⚙ Load Type Carbon Comparison")
-
-fig = px.bar(
-    load_emissions,
-    x="Load_Type",
-    y="CO2(tCO2)",
-    color="Load_Type",
-    text_auto=True
-)
-
-fig.update_layout(height=500)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# --------------------------------------------------
-# CARBON INTENSITY TREND
-# --------------------------------------------------
-
-st.subheader("🌍 Carbon Intensity Trend")
-
-daily_intensity = (
-    df.groupby(df[date_col].dt.date)
-    .agg({
-        "CO2(tCO2)": "sum",
-        "Usage_kWh": "sum"
-    })
-    .reset_index()
-)
-
-daily_intensity["Carbon_Intensity"] = (
-    daily_intensity["CO2(tCO2)"]
-    /
-    daily_intensity["Usage_kWh"]
-)
-
-fig = px.line(
-    daily_intensity,
-    x=date_col,
-    y="Carbon_Intensity",
-    markers=True
-)
-
-fig.update_layout(height=500)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# --------------------------------------------------
-# HEATMAP
-# --------------------------------------------------
-
-st.subheader("🔥 Weekly Energy Usage Heatmap")
-
-heatmap_data = pd.pivot_table(
-    df,
-    values="Usage_kWh",
-    index="Day_of_week",
-    columns="Load_Type",
-    aggfunc="mean"
-)
-
-fig = px.imshow(
-    heatmap_data,
-    text_auto=True,
-    aspect="auto"
-)
-
-fig.update_layout(height=500)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# --------------------------------------------------
-# TOP EMISSION PERIODS
-# --------------------------------------------------
-
-st.subheader("🚨 Top 20 Carbon Emission Records")
-
-top_emissions = (
-    df.sort_values(
-        "CO2(tCO2)",
-        ascending=False
-    )
-    .head(20)
-)
-
-st.dataframe(
-    top_emissions,
-    use_container_width=True
-)
-
-# --------------------------------------------------
-# EMISSION STATISTICS
-# --------------------------------------------------
-
-st.subheader("📋 Emission Statistics")
-
-stats = pd.DataFrame({
-    "Metric": [
-        "Minimum",
-        "Maximum",
-        "Mean",
-        "Median",
-        "Std Dev",
-        "Variance"
-    ],
-    "Value": [
-        df["CO2(tCO2)"].min(),
-        df["CO2(tCO2)"].max(),
-        df["CO2(tCO2)"].mean(),
-        df["CO2(tCO2)"].median(),
-        df["CO2(tCO2)"].std(),
-        df["CO2(tCO2)"].var()
-    ]
-})
-
-st.dataframe(
-    stats,
-    use_container_width=True
-)
-
-# --------------------------------------------------
-# SUSTAINABILITY SCORECARD
-# --------------------------------------------------
-
-st.subheader("🌱 Sustainability Scorecard")
-
-emission_target = total_emissions * 0.90
-
-reduction_needed = (
-    total_emissions - emission_target
-)
-
-progress = (
-    (emission_target / total_emissions)
-    * 100
-)
-
-col1, col2, col3 = st.columns(3)
+col1,col2 = st.columns(2)
 
 with col1:
-    st.metric(
-        "Current CO₂",
-        f"{total_emissions:,.2f}"
-    )
+    st.subheader("Load Type Contribution")
+    load = filtered.groupby("Load_Type")["CO2(tCO2)"].sum().reset_index()
+    fig = px.pie(load, names="Load_Type", values="CO2(tCO2)")
+    st.plotly_chart(fig, use_container_width=True)
 
 with col2:
-    st.metric(
-        "Target CO₂",
-        f"{emission_target:,.2f}"
-    )
+    st.subheader("Carbon Intensity")
+    fig = px.box(filtered, y="Carbon_Intensity", x="Load_Type")
+    st.plotly_chart(fig, use_container_width=True)
 
-with col3:
-    st.metric(
-        "Reduction Required",
-        f"{reduction_needed:,.2f}"
-    )
+st.subheader("Monthly Emissions")
+monthly = filtered.groupby(filtered["Date"].dt.to_period("M"))["CO2(tCO2)"].sum().reset_index()
+monthly["Date"] = monthly["Date"].astype(str)
+fig = px.bar(monthly, x="Date", y="CO2(tCO2)")
+st.plotly_chart(fig, use_container_width=True)
 
-st.progress(progress / 100)
+st.subheader("Emission Distribution")
+fig = px.histogram(filtered, x="CO2(tCO2)", nbins=40)
+st.plotly_chart(fig, use_container_width=True)
 
-# --------------------------------------------------
-# DOWNLOAD REPORT
-# --------------------------------------------------
-
-st.subheader("⬇ Export Carbon Analytics")
-
-csv = monthly_emissions.to_csv(
-    index=False
+st.subheader("Reactive Power Impact")
+fig = px.scatter(
+    filtered,
+    x="Lagging_Current_Reactive.Power_kVarh",
+    y="CO2(tCO2)",
+    color="Load_Type"
 )
+st.plotly_chart(fig, use_container_width=True)
 
-st.download_button(
-    label="Download Monthly Carbon Report",
-    data=csv,
-    file_name="monthly_carbon_report.csv",
-    mime="text/csv"
-)
+st.subheader("AI Insights")
 
-# --------------------------------------------------
-# FOOTER
-# --------------------------------------------------
+top_load = load.sort_values("CO2(tCO2)", ascending=False).iloc[0]
 
-st.markdown("---")
+st.info(
+    f"""
+    • {top_load['Load_Type']} contributes the highest emissions.
 
-st.caption(
-    "Carbon Analytics Module | Steel Industry Carbon Footprint & ESG Analytics Platform"
+    • Total emissions are {total_emissions:,.2f} tCO₂.
+
+    • Average carbon intensity is {carbon_intensity:.4f}.
+
+    • Annualized emissions are estimated at {annualized:,.2f} tCO₂.
+    """
 )
