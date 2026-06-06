@@ -6,10 +6,6 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-# ---------------------------------------------------------
-# PAGE CONFIG
-# ---------------------------------------------------------
-
 st.set_page_config(
     page_title="Sustainability Insights",
     page_icon="🌍",
@@ -19,167 +15,90 @@ st.set_page_config(
 st.title("🌍 Sustainability Insights Center")
 st.markdown("---")
 
-# ---------------------------------------------------------
-# LOAD DATA
-# ---------------------------------------------------------
-
 if "data" not in st.session_state:
-    st.warning(
-        "Please upload dataset from Executive Summary page."
-    )
+    st.warning("Please upload dataset from Executive Summary page.")
     st.stop()
 
 df = st.session_state["data"].copy()
 
-# ---------------------------------------------------------
-# DATE COLUMN
-# ---------------------------------------------------------
-
 date_col = None
-
 for col in df.columns:
     if "date" in col.lower():
         date_col = col
         break
 
-if date_col:
-    df[date_col] = pd.to_datetime(
-        df[date_col],
-        errors="coerce"
-    )
+if date_col and date_col in df.columns:
+    df[date_col] = pd.to_datetime(df[date_col], dayfirst=True, errors="coerce")
 
-# ---------------------------------------------------------
-# CORE SUSTAINABILITY METRICS
-# ---------------------------------------------------------
+required_cols = ["Usage_kWh", "CO2(tCO2)"]
+for col in required_cols:
+    if col not in df.columns:
+        st.error(f"Missing required column: {col}")
+        st.stop()
 
 total_energy = df["Usage_kWh"].sum()
-
 total_emissions = df["CO2(tCO2)"].sum()
 
-avg_energy = df["Usage_kWh"].mean()
-
-avg_emissions = df["CO2(tCO2)"].mean()
-
 carbon_intensity = (
-    total_emissions /
-    total_energy
+    total_emissions / total_energy
+    if total_energy > 0 else 0
 )
 
 energy_efficiency = (
-    total_energy /
-    total_emissions
+    total_energy / total_emissions
+    if total_emissions > 0 else 0
 )
 
-# ---------------------------------------------------------
-# KPI SECTION
-# ---------------------------------------------------------
+sustainability_score = max(
+    0,
+    min(100, 100 - (carbon_intensity * 1000))
+)
 
 st.subheader("📊 Sustainability KPIs")
 
 c1, c2, c3, c4, c5 = st.columns(5)
 
 with c1:
-    st.metric(
-        "Total Energy",
-        f"{total_energy:,.0f} kWh"
-    )
+    st.metric("Total Energy", f"{total_energy:,.0f} kWh")
 
 with c2:
-    st.metric(
-        "Total CO₂",
-        f"{total_emissions:,.2f}"
-    )
+    st.metric("Total CO₂", f"{total_emissions:,.2f}")
 
 with c3:
-    st.metric(
-        "Carbon Intensity",
-        f"{carbon_intensity:.5f}"
-    )
+    st.metric("Carbon Intensity", f"{carbon_intensity:.5f}")
 
 with c4:
-    st.metric(
-        "Energy Efficiency",
-        f"{energy_efficiency:.2f}"
-    )
+    st.metric("Energy Efficiency", f"{energy_efficiency:.2f}")
 
 with c5:
-    sustainability_score = max(
-        0,
-        min(
-            100,
-            100 - (carbon_intensity * 1000)
-        )
-    )
-
-    st.metric(
-        "Sustainability Score",
-        f"{sustainability_score:.0f}"
-    )
+    st.metric("Sustainability Score", f"{sustainability_score:.0f}")
 
 st.markdown("---")
-
-# ---------------------------------------------------------
-# SUSTAINABILITY GAUGE
-# ---------------------------------------------------------
-
-st.subheader("🌱 Sustainability Score")
 
 fig = go.Figure(
     go.Indicator(
         mode="gauge+number",
         value=sustainability_score,
-        title={
-            "text":
-            "Sustainability Index"
-        },
+        title={"text": "Sustainability Index"},
         gauge={
-            "axis": {
-                "range": [0, 100]
-            },
-            "steps": [
-                {
-                    "range": [0, 50],
-                    "color": "#ff4b4b"
-                },
-                {
-                    "range": [50, 75],
-                    "color": "#f7c948"
-                },
-                {
-                    "range": [75, 100],
-                    "color": "#00cc96"
-                }
-            ]
+            "axis": {"range": [0, 100]}
         }
     )
 )
+st.plotly_chart(fig, use_container_width=True)
 
-fig.update_layout(
-    height=400
-)
+monthly = None
 
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
+if date_col and df[date_col].notna().sum() > 0:
 
-# ---------------------------------------------------------
-# MONTHLY SUSTAINABILITY TREND
-# ---------------------------------------------------------
+    st.subheader("📈 Sustainability Progress Trend")
 
-if date_col:
-
-    st.subheader(
-        "📈 Sustainability Progress Trend"
-    )
+    monthly_df = df.dropna(subset=[date_col]).copy()
 
     monthly = (
-        df.groupby(
-            pd.Grouper(
-                key=date_col,
-                freq="M"
-            )
-        )
+        monthly_df
+        .set_index(date_col)
+        .resample("ME")
         .agg({
             "Usage_kWh": "sum",
             "CO2(tCO2)": "sum"
@@ -187,232 +106,138 @@ if date_col:
         .reset_index()
     )
 
-    monthly["Carbon_Intensity"] = (
-        monthly["CO2(tCO2)"]
-        /
-        monthly["Usage_kWh"]
+    monthly["Carbon_Intensity"] = np.where(
+        monthly["Usage_kWh"] == 0,
+        0,
+        monthly["CO2(tCO2)"] / monthly["Usage_kWh"]
     )
 
     fig = px.line(
         monthly,
         x=date_col,
         y="Carbon_Intensity",
-        markers=True,
-        title="Monthly Carbon Intensity"
+        markers=True
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+if "Load_Type" in df.columns:
+
+    st.subheader("🏭 Sustainability by Load Type")
+
+    load_summary = (
+        df.groupby("Load_Type")
+        .agg(
+            Energy=("Usage_kWh", "sum"),
+            Emissions=("CO2(tCO2)", "sum")
+        )
+        .reset_index()
+    )
+
+    load_summary["Carbon_Intensity"] = np.where(
+        load_summary["Energy"] == 0,
+        0,
+        load_summary["Emissions"] / load_summary["Energy"]
     )
 
     st.plotly_chart(
-        fig,
+        px.bar(
+            load_summary,
+            x="Load_Type",
+            y="Carbon_Intensity",
+            color="Load_Type"
+        ),
         use_container_width=True
     )
 
-# ---------------------------------------------------------
-# LOAD TYPE SUSTAINABILITY
-# ---------------------------------------------------------
+if "Day_of_week" in df.columns:
 
-st.subheader(
-    "🏭 Sustainability by Load Type"
-)
+    st.subheader("📅 Weekday Sustainability Analysis")
 
-load_summary = (
-    df.groupby("Load_Type")
-    .agg(
-        Energy=("Usage_kWh", "sum"),
-        Emissions=("CO2(tCO2)", "sum")
+    weekday = (
+        df.groupby("Day_of_week")
+        .agg(
+            Energy=("Usage_kWh", "sum"),
+            Emissions=("CO2(tCO2)", "sum")
+        )
+        .reset_index()
     )
-    .reset_index()
-)
 
-load_summary["Carbon_Intensity"] = (
-    load_summary["Emissions"]
-    /
-    load_summary["Energy"]
-)
-
-fig = px.bar(
-    load_summary,
-    x="Load_Type",
-    y="Carbon_Intensity",
-    color="Load_Type",
-    text_auto=True
-)
-
-fig.update_layout(
-    height=500
-)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# ---------------------------------------------------------
-# WEEKDAY ANALYSIS
-# ---------------------------------------------------------
-
-st.subheader(
-    "📅 Weekday Sustainability Analysis"
-)
-
-weekday = (
-    df.groupby("Day_of_week")
-    .agg(
-        Energy=("Usage_kWh", "sum"),
-        Emissions=("CO2(tCO2)", "sum")
+    weekday["Carbon_Intensity"] = np.where(
+        weekday["Energy"] == 0,
+        0,
+        weekday["Emissions"] / weekday["Energy"]
     )
-    .reset_index()
-)
 
-weekday["Carbon_Intensity"] = (
-    weekday["Emissions"]
-    /
-    weekday["Energy"]
-)
+    st.plotly_chart(
+        px.bar(
+            weekday,
+            x="Day_of_week",
+            y="Carbon_Intensity"
+        ),
+        use_container_width=True
+    )
 
-fig = px.bar(
-    weekday,
-    x="Day_of_week",
-    y="Carbon_Intensity",
-    color="Carbon_Intensity"
-)
+if "Load_Type" in df.columns:
 
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
+    st.subheader("⚡ Energy vs Carbon Relationship")
 
-# ---------------------------------------------------------
-# ENERGY VS EMISSIONS
-# ---------------------------------------------------------
+    fig = px.scatter(
+        df,
+        x="Usage_kWh",
+        y="CO2(tCO2)",
+        color="Load_Type",
+        size="Usage_kWh"
+    )
 
-st.subheader(
-    "⚡ Energy vs Carbon Relationship"
-)
+    st.plotly_chart(fig, use_container_width=True)
 
-fig = px.scatter(
-    df,
-    x="Usage_kWh",
-    y="CO2(tCO2)",
-    color="Load_Type",
-    size="Usage_kWh",
-    opacity=0.7
-)
-
-fig.update_layout(
-    height=600
-)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# ---------------------------------------------------------
-# EMISSION HOTSPOTS
-# ---------------------------------------------------------
-
-st.subheader(
-    "🔥 Emission Hotspots"
-)
+st.subheader("🔥 Emission Hotspots")
 
 top_emitters = (
-    df.sort_values(
-        "CO2(tCO2)",
-        ascending=False
-    )
+    df.sort_values("CO2(tCO2)", ascending=False)
     .head(25)
 )
 
-st.dataframe(
-    top_emitters,
-    use_container_width=True
-)
+st.dataframe(top_emitters, use_container_width=True)
 
-# ---------------------------------------------------------
-# SUSTAINABILITY TARGETS
-# ---------------------------------------------------------
-
-st.subheader(
-    "🎯 Sustainability Targets"
-)
+st.subheader("🎯 Sustainability Targets")
 
 target_reduction = st.slider(
     "Carbon Reduction Target (%)",
-    5,
-    50,
-    15
+    5, 50, 15
 )
 
-target_emission = (
-    total_emissions *
-    (1 - target_reduction / 100)
-)
-
-required_reduction = (
-    total_emissions -
-    target_emission
-)
+target_emission = total_emissions * (1 - target_reduction / 100)
+required_reduction = total_emissions - target_emission
 
 progress = (
-    target_emission /
-    total_emissions
-) * 100
+    target_emission / total_emissions * 100
+    if total_emissions > 0 else 0
+)
 
-c1, c2, c3 = st.columns(3)
+st.progress(int(min(100, progress)))
 
-with c1:
-    st.metric(
-        "Current Emissions",
-        f"{total_emissions:,.2f}"
+st.subheader("🤖 AI Sustainability Insights")
+
+if "Load_Type" in df.columns:
+
+    load_emission = (
+        df.groupby("Load_Type")["CO2(tCO2)"]
+        .sum()
     )
 
-with c2:
-    st.metric(
-        "Target Emissions",
-        f"{target_emission:,.2f}"
+    top_load = load_emission.idxmax()
+
+    top_load_pct = (
+        load_emission.max() / load_emission.sum()
+    ) * 100
+
+    st.success(
+        f"{top_load} contributed {top_load_pct:.1f}% of total emissions."
     )
 
-with c3:
-    st.metric(
-        "Reduction Needed",
-        f"{required_reduction:,.2f}"
-    )
-
-st.progress(
-    int(progress)
-)
-
-# ---------------------------------------------------------
-# AI INSIGHTS ENGINE
-# ---------------------------------------------------------
-
-st.subheader(
-    "🤖 AI Sustainability Insights"
-)
-
-# Heavy Load Contribution
-
-load_emission = (
-    df.groupby("Load_Type")
-    ["CO2(tCO2)"]
-    .sum()
-)
-
-top_load = load_emission.idxmax()
-
-top_load_pct = (
-    load_emission.max()
-    /
-    load_emission.sum()
-) * 100
-
-st.success(
-    f"{top_load} contributed {top_load_pct:.1f}% of total emissions."
-)
-
-# Monthly Growth
-
-if date_col:
+if monthly is not None and len(monthly) > 1:
 
     monthly_growth = (
         monthly["CO2(tCO2)"]
@@ -424,107 +249,30 @@ if date_col:
         f"Average monthly emission change: {monthly_growth:.2f}%."
     )
 
-# Peak Consumption
+if "Day_of_week" in df.columns:
 
-peak_day = (
-    df.groupby("Day_of_week")
-    ["Usage_kWh"]
-    .sum()
-    .idxmax()
-)
+    peak_day = (
+        df.groupby("Day_of_week")["Usage_kWh"]
+        .sum()
+        .idxmax()
+    )
 
-st.warning(
-    f"Peak consumption occurred on {peak_day}."
-)
+    st.warning(
+        f"Peak consumption occurred on {peak_day}."
+    )
 
-# Power Factor Insight
+if "Lagging_Current_Power_Factor" in df.columns:
 
-if (
-    "Lagging_Current_Power_Factor"
-    in df.columns
-):
-
-    avg_pf = df[
-        "Lagging_Current_Power_Factor"
-    ].mean()
+    avg_pf = df["Lagging_Current_Power_Factor"].mean()
 
     if avg_pf < 90:
-
         st.warning(
             "Reactive power inefficiency is increasing carbon emissions."
         )
 
-# Sustainability Status
-
-if sustainability_score >= 80:
-
-    st.success(
-        "Facility sustainability performance is excellent."
-    )
-
-elif sustainability_score >= 60:
-
-    st.warning(
-        "Sustainability performance is moderate. Improvement opportunities exist."
-    )
-
-else:
-
-    st.error(
-        "Sustainability performance requires immediate attention."
-    )
-
-# ---------------------------------------------------------
-# RECOMMENDATION ENGINE
-# ---------------------------------------------------------
-
-st.subheader(
-    "💡 Sustainability Recommendations"
-)
-
-recommendations = []
-
-recommendations.append(
-    "Optimize high-emission load operations."
-)
-
-recommendations.append(
-    "Reduce peak-hour energy consumption."
-)
-
-recommendations.append(
-    "Improve power factor correction systems."
-)
-
-recommendations.append(
-    "Deploy energy-efficient equipment."
-)
-
-recommendations.append(
-    "Increase renewable energy utilization."
-)
-
-recommendations.append(
-    "Monitor anomaly alerts regularly."
-)
-
-recommendations.append(
-    "Implement predictive maintenance strategies."
-)
-
-for rec in recommendations:
-    st.success(rec)
-
-# ---------------------------------------------------------
-# SUSTAINABILITY REPORT
-# ---------------------------------------------------------
-
-st.subheader(
-    "📋 Sustainability Report"
-)
+st.subheader("📋 Sustainability Report")
 
 report = pd.DataFrame({
-
     "Metric": [
         "Total Energy",
         "Total Emissions",
@@ -532,7 +280,6 @@ report = pd.DataFrame({
         "Energy Efficiency",
         "Sustainability Score"
     ],
-
     "Value": [
         total_energy,
         total_emissions,
@@ -542,29 +289,16 @@ report = pd.DataFrame({
     ]
 })
 
-st.dataframe(
-    report,
-    use_container_width=True
-)
+st.dataframe(report, use_container_width=True)
 
-# ---------------------------------------------------------
-# DOWNLOAD REPORT
-# ---------------------------------------------------------
-
-csv = report.to_csv(
-    index=False
-)
+csv = report.to_csv(index=False)
 
 st.download_button(
-    label="⬇ Download Sustainability Report",
-    data=csv,
-    file_name="sustainability_report.csv",
-    mime="text/csv"
+    "⬇ Download Sustainability Report",
+    csv,
+    "sustainability_report.csv",
+    "text/csv"
 )
-
-# ---------------------------------------------------------
-# FOOTER
-# ---------------------------------------------------------
 
 st.markdown("---")
 
