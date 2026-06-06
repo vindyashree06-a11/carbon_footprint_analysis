@@ -171,7 +171,7 @@ if st.button("Predict CO₂ Emission"):
             lead_pf,
             nsm
         ]],
-        columns=featuresa
+        columns=features
     )
 
     prediction = best_model.predict(sample)[0]
