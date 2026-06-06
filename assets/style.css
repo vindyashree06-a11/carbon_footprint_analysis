@@ -1,0 +1,80 @@
+
+/* ==========================================
+   Steel ESG Analytics Platform Theme
+   ========================================== */
+
+.main {
+    padding-top: 1rem;
+}
+
+/* KPI Cards */
+[data-testid="metric-container"] {
+    border-radius: 12px;
+    padding: 15px;
+    border: 1px solid rgba(128,128,128,0.2);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Headers */
+h1, h2, h3 {
+    font-weight: 700 !important;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    border-right: 1px solid rgba(128,128,128,0.15);
+}
+
+/* Buttons */
+.stButton > button {
+    width: 100%;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+/* Dataframes */
+[data-testid="stDataFrame"] {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* Alerts */
+.stAlert {
+    border-radius: 10px;
+}
+
+/* Tabs */
+button[role="tab"] {
+    font-weight: 600;
+}
+
+/* Plot Containers */
+.js-plotly-plot {
+    border-radius: 10px;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 15px;
+    opacity: 0.7;
+}
+
+/* ESG Status Badges */
+.green-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.yellow-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.red-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: bold;
+}
