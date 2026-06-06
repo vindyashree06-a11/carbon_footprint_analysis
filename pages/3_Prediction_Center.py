@@ -19,10 +19,6 @@ from sklearn.ensemble import (
     GradientBoostingRegressor
 )
 
-# =====================================================
-# PAGE CONFIG
-# =====================================================
-
 st.set_page_config(
     page_title="Prediction Center",
     page_icon="🤖",
@@ -35,17 +31,25 @@ st.title("🤖 Carbon Emission Prediction Center")
 # LOAD DATA
 # =====================================================
 
-@st.cache_data
-def load_data():
-    return pd.read_csv("data/Steel_industry_data.csv")
+if (
+    "dataset" in st.session_state
+    and st.session_state.dataset is not None
+):
+    df = st.session_state.dataset.copy()
 
+else:
+    try:
+        df = pd.read_csv(
+            "data/Steel_industry_data.csv"
+        )
 
-try:
-    df = load_data()
+    except Exception as e:
 
-except Exception as e:
-    st.error(f"Dataset Error: {e}")
-    st.stop()
+        st.error(
+            f"Dataset Error: {e}"
+        )
+
+        st.stop()
 
 # =====================================================
 # VALIDATE DATASET
@@ -62,14 +66,17 @@ required_columns = [
 ]
 
 missing = [
-    col for col in required_columns
+    col
+    for col in required_columns
     if col not in df.columns
 ]
 
 if missing:
+
     st.error(
         f"Missing Columns: {missing}"
     )
+
     st.stop()
 
 # =====================================================
@@ -77,6 +84,7 @@ if missing:
 # =====================================================
 
 if "Date" in df.columns:
+
     df["Date"] = pd.to_datetime(
         df["Date"],
         errors="coerce"
@@ -101,24 +109,34 @@ X = df[features]
 y = df[target]
 
 # =====================================================
-# TRAIN / LOAD MODEL
+# MODEL
 # =====================================================
 
 MODEL_PATH = "models/best_carbon_model.pkl"
 
+best_model = None
+
 if os.path.exists(MODEL_PATH):
 
-    best_model = joblib.load(MODEL_PATH)
+    try:
 
-    st.success(
-        "Loaded Existing Trained Model"
-    )
+        best_model = joblib.load(
+            MODEL_PATH
+        )
 
-else:
+        st.success(
+            "Loaded Existing Trained Model"
+        )
 
-    st.warning(
-        "No Trained Model Found. Training New Model..."
-    )
+    except:
+
+        best_model = None
+
+# =====================================================
+# TRAIN MODEL
+# =====================================================
+
+if best_model is None:
 
     X_train, X_test, y_train, y_test = train_test_split(
         X,
@@ -143,11 +161,10 @@ else:
             )
     }
 
-    results = []
-
-    best_model = None
     best_r2 = -999
     best_name = ""
+
+    results = []
 
     for name, model in models.items():
 
@@ -217,27 +234,8 @@ else:
         f"Best Model Saved: {best_name}"
     )
 
-    results_df = pd.DataFrame(
-        results,
-        columns=[
-            "Model",
-            "R²",
-            "MAE",
-            "RMSE"
-        ]
-    )
-
-    st.subheader(
-        "Model Performance"
-    )
-
-    st.dataframe(
-        results_df,
-        width="stretch"
-    )
-
 # =====================================================
-# PREDICTION INPUTS
+# INPUTS
 # =====================================================
 
 st.subheader(
@@ -246,72 +244,60 @@ st.subheader(
 
 col1, col2, col3 = st.columns(3)
 
-with col1:
-
-    usage = st.number_input(
-        "Usage kWh",
-        value=float(
-            df["Usage_kWh"].median()
-        )
+usage = col1.number_input(
+    "Usage kWh",
+    value=float(
+        df["Usage_kWh"].median()
     )
+)
 
-with col2:
-
-    lagging = st.number_input(
-        "Lagging Reactive Power",
-        value=float(
-            df[
-                "Lagging_Current_Reactive.Power_kVarh"
-            ].median()
-        )
+lagging = col2.number_input(
+    "Lagging Reactive Power",
+    value=float(
+        df[
+            "Lagging_Current_Reactive.Power_kVarh"
+        ].median()
     )
+)
 
-with col3:
-
-    leading = st.number_input(
-        "Leading Reactive Power",
-        value=float(
-            df[
-                "Leading_Current_Reactive_Power_kVarh"
-            ].median()
-        )
+leading = col3.number_input(
+    "Leading Reactive Power",
+    value=float(
+        df[
+            "Leading_Current_Reactive_Power_kVarh"
+        ].median()
     )
+)
 
 col4, col5, col6 = st.columns(3)
 
-with col4:
-
-    lag_pf = st.number_input(
-        "Lagging Power Factor",
-        value=float(
-            df[
-                "Lagging_Current_Power_Factor"
-            ].median()
-        )
+lag_pf = col4.number_input(
+    "Lagging Power Factor",
+    value=float(
+        df[
+            "Lagging_Current_Power_Factor"
+        ].median()
     )
+)
 
-with col5:
-
-    lead_pf = st.number_input(
-        "Leading Power Factor",
-        value=float(
-            df[
-                "Leading_Current_Power_Factor"
-            ].median()
-        )
+lead_pf = col5.number_input(
+    "Leading Power Factor",
+    value=float(
+        df[
+            "Leading_Current_Power_Factor"
+        ].median()
     )
+)
 
-with col6:
-
-    nsm = st.number_input(
-        "NSM",
-        value=float(
-            df["NSM"].median()
-        )
+nsm = col6.number_input(
+    "NSM",
+    value=float(
+        df["NSM"].median()
     )
+)
 
 # =====================================================
-# PREDICT
+# PREDICTION
 # =====================================================
 
 if st.button(
@@ -339,20 +325,25 @@ if st.button(
         0
     )
 
+    st.write(
+        "Raw Prediction:",
+        prediction
+    )
+
     st.metric(
         "Predicted CO₂ Emission",
-        f"{prediction:.4f} tCO₂"
+        f"{prediction:.8f} tCO₂"
     )
 
     st.info(
         f"""
 Next Day Forecast:
-{prediction:.4f} tCO₂
+{prediction:.8f} tCO₂
 
 Next Week Forecast:
-{prediction*7:.4f} tCO₂
+{prediction*7:.8f} tCO₂
 
 Next Month Forecast:
-{prediction*30:.4f} tCO₂
+{prediction*30:.8f} tCO₂
 """
     )
